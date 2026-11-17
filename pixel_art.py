@@ -24,6 +24,9 @@ def _image(color):
 
 
 def _rect(d, xy, fill, outline=None, width=1):
+    """Draw a Pillow rectangle, accepting either corner ordering safely."""
+    x0, y0, x1, y1 = xy
+    xy = (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
     d.rectangle(xy, fill=fill, outline=outline, width=width)
 
 
@@ -55,7 +58,8 @@ def start_scene():
     _pixel_scatter(d, (0, 5, W, 165), 190, [(186, 195, 232), (246, 221, 153), (137, 222, 222), (205, 157, 213)], 41, (1, 1))
     # Far bank, dark blue masonry and small colored plants.
     _rect(d, (0, 158, 639, 204), (42, 63, 135))
-    _rect(d, (0, 159, 639, 5), (24, 39, 105))
+    # Pillow coordinates are (left, top, right, bottom); this is a 5px band.
+    _rect(d, (0, 159, 639, 164), (24, 39, 105))
     for x in range(-4, 645, 34):
         d.line((x, 165, x, 193), fill=(31, 47, 112), width=2)
         d.line((x+8, 177, x+23, 177), fill=(119, 143, 203), width=2)
