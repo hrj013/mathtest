@@ -3,73 +3,55 @@ import random
 
 import streamlit as st
 
-st.set_page_config(page_title="하수관 AI 정비대", page_icon="📡", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="하수관 AI 정비대", page_icon="🫧", layout="wide", initial_sidebar_state="collapsed")
 
 FEATURES = ["압력", "소음", "침전물", "부식"]
 LEARNING_RATE = 0.85
 
-BASE_CSS = """
+GLOBAL_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap');
-:root { --ink:#33445f; --blue:#829be0; --lav:#d5d9ff; --mint:#b6edda; --pink:#ffb1cb; --paper:#f6f5ff; }
+:root { --ink:#34365e; --outline:#6263a4; --lav:#d9c9f3; --pink:#f5aed1; --mint:#a7e5d3; --paper:#fff8ee; }
 html, body, [class*="css"] { font-family:'Gowun Dodum',sans-serif; }
-.block-container { max-width:1280px; padding-top:1rem; padding-bottom:2rem; }
+.stApp { background:#c9d8fa; color:var(--ink); }
+.block-container { max-width:1260px; padding-top:.8rem; padding-bottom:2rem; }
 h1,h2,h3 { font-family:'Jua',sans-serif!important; }
-.hero { text-align:center; padding:7px 0 0; }
-.hero h1 { font-size:3rem; margin:.1rem 0; color:#394c79; text-shadow:2px 3px #fff; }
-.hero p { font-size:1.04rem; line-height:1.6; color:#53668f; }
-.small-label { color:#7181ac; font-size:.88rem; letter-spacing:.04em; }
-.scene-frame { border:4px solid #7189c6; box-shadow:7px 7px 0 #9eacd9; overflow:hidden; background:#b9c9f5; }
-.pill { display:inline-block; padding:5px 11px; border:2px solid #8999c7; background:#f7f6ff; margin:4px; color:#4b608e; font-family:'Jua',sans-serif; }
-.pixel-card { background:#fbfaff; border:3px solid #7189c6; box-shadow:4px 4px 0 #9eacd9; padding:13px 15px; margin:5px 0 12px; }
-.pixel-card h3 { margin:.1rem 0 .45rem; color:#384c76; }
-.stButton > button { border:3px solid #667faf!important; border-radius:3px!important; background:#fff3be!important; color:#394c76!important; font-family:'Jua',sans-serif!important; font-size:1.03rem!important; box-shadow:3px 3px 0 #7b88ad!important; min-height:2.55rem; }
-.stButton > button:hover { background:#ffe5ef!important; border-color:#d67fa3!important; color:#394c76!important; }
-div[data-testid="stMetric"] { background:#f8f7ff; border:2px solid #c1cae9; padding:8px; border-radius:3px; }
+.hero { text-align:center; padding:5px 0 8px; }
+.hero h1 { font-size:2.9rem; margin:.05rem 0; color:#414879; text-shadow:2px 3px #fff; }
+.hero p { color:#555d89; line-height:1.55; }
+.pixel-frame { border:4px solid var(--outline); box-shadow:6px 6px 0 #9299c5; background:#fff8ee; }
+.pixel-panel { background:#fff8ee; border:3px solid var(--outline); box-shadow:4px 4px 0 #9299c5; padding:12px 14px; margin:6px 0 12px; }
+.pixel-panel h3 { margin:.1rem 0 .45rem; color:#414879; }
+.small-label { color:#666e9a; font-size:.86rem; }
+.pill { display:inline-block; padding:4px 10px; border:2px solid #7479ad; background:#fff8ee; margin:3px; color:#4b5685; font-family:'Jua',sans-serif; }
+.stButton > button { border:3px solid #5d6399!important; border-radius:2px!important; background:#fff0af!important; color:#34365e!important; font-family:'Jua',sans-serif!important; font-size:1.02rem!important; box-shadow:3px 3px 0 #9299c5!important; min-height:2.55rem; }
+.stButton > button:hover { background:#ffc9dc!important; border-color:#8e5c9c!important; color:#34365e!important; }
+div[data-testid="stMetric"] { background:#fff8ee; border:2px solid #aeb4d5; padding:8px; border-radius:2px; }
 .day-strip { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
-.day-cell { text-align:center; border:2px solid #adb9df; background:#f8f7ff; padding:6px 2px; color:#7181ac; font-size:.76rem; }
-.day-cell b { display:block; color:#3e527e; font-size:1.1rem; min-height:1.25rem; }
-.day-cell.ok b { color:#28a77e; } .day-cell.no b { color:#d6658c; }
-.result-box { text-align:center; padding:22px; background:#fbfaff; border:4px solid #7189c6; box-shadow:6px 6px 0 #9eacd9; }
+.day-cell { text-align:center; border:2px solid #aeb4d5; background:#fff8ee; padding:6px 2px; color:#69719b; font-size:.76rem; }
+.day-cell b { display:block; color:#414879; font-size:1.1rem; min-height:1.2rem; }
+.day-cell.ok b { color:#188e77; } .day-cell.no b { color:#d2547d; }
+.dialog { border:4px solid #f8f3ec; outline:3px solid #35354c; box-shadow:5px 5px 0 #34364e; background:#11131d; color:#fff9ed; padding:12px 17px; margin:10px auto 12px; max-width:1120px; font-family:'Gowun Dodum',sans-serif; }
+.dialog-name { display:inline-block; border:2px solid #eee6d4; background:#1b1d2b; padding:3px 10px; margin-top:-27px; color:#ffe78d; font-family:'Jua',sans-serif; }
+.dialog-text { font-size:1rem; line-height:1.6; margin-top:5px; }
+.room-scene { max-width:1120px; margin:0 auto; border:4px solid #53577e; box-shadow:6px 6px 0 #9299c5; }
+.screen-frame { max-width:1120px; margin:8px auto 0; padding:10px; background:#555773; border:4px solid #34354e; box-shadow:0 0 0 3px #8588ad,6px 8px 0 #444765; }
+.screen-titlebar { display:flex; justify-content:space-between; color:#def4e5; background:#292d42; border:2px solid #73789a; padding:5px 10px; font:12px monospace; letter-spacing:.06em; margin-bottom:8px; }
+.monitor-card { border:3px solid #666b90; background:#25293b; padding:5px; box-shadow:inset 0 0 0 2px #171a28; }
+.monitor-label { font:12px monospace; color:#e4e6d9; background:#1d2030; padding:5px 7px; }
+.monitor-art { border:2px solid #8588ad; line-height:0; background:#8fa4d1; }
+.sensor-readout { font:11px monospace; color:#e6e2d5; line-height:1.55; padding:5px 4px 1px; }
+.dark-day-strip { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.dark-day { background:#333750; border:2px solid #777ca0; text-align:center; color:#e4e2d6; padding:5px 1px; font:10px monospace; }
+.dark-day b { display:block; min-height:19px; font:bold 16px monospace; color:#f6e8ac; }
+.dark-day.ok b { color:#8ee3b6; } .dark-day.no b { color:#ff9caf; }
+.side-card { background:#fff8ee; border:3px solid #7178a8; box-shadow:3px 3px 0 #a4a9cc; padding:11px; margin:6px 0 12px; color:#404668; }
+.side-card h3 { color:#474b7b; font-size:1.1rem; margin:0 0 7px; }
+.stProgress > div > div { background:#5ab7a4!important; }
 footer { visibility:hidden; }
 </style>
 """
-
-DARK_CSS = """
-<style>
-.stApp { background:radial-gradient(ellipse at 50% 28%,#273142 0%,#151923 48%,#0b0d13 100%); color:#e7e8ef; }
-.block-container { max-width:1320px; }
-section[data-testid="stMain"] { color:#e7e8ef; }
-.game-header { text-align:center; color:#e8e7ed; padding:0 0 8px; }
-.game-header h1 { color:#f0e9dd; text-shadow:0 0 12px #f7a359,2px 3px #111; font-size:2rem; margin:3px 0; }
-.game-header .badge { display:inline-block; background:#171b24; border:1px solid #72717a; color:#f0d7a1; padding:5px 12px; margin:3px; font-family:'Jua',sans-serif; letter-spacing:.06em; }
-.room-art { max-width:1120px; margin:0 auto; border:3px solid #46434a; border-bottom:0; box-shadow:0 0 30px #000; }
-.control-caption { text-align:center; color:#b5b4be; font-size:.88rem; padding:4px 0 9px; }
-.screen-frame { max-width:1120px; margin:0 auto; padding:12px; background:linear-gradient(145deg,#42444b,#191b22 18%,#282a31 80%,#505058); border:5px solid #77767a; box-shadow:0 0 0 3px #111,0 12px 30px #000; }
-.screen-titlebar { display:flex; justify-content:space-between; color:#b9c3cf; background:#0b0d12; border:1px solid #545864; padding:5px 10px; font:12px monospace; letter-spacing:.08em; margin-bottom:9px; }
-.monitor-card { border:4px solid #585a61; background:#080b10; padding:5px; box-shadow:inset 0 0 16px #000; }
-.monitor-label { font:12px monospace; letter-spacing:.08em; color:#b9c5d0; background:#10141a; padding:5px 7px; }
-.monitor-art { border:2px solid #242a31; line-height:0; background:#101720; }
-.sensor-readout { font:11px monospace; color:#aab8ba; line-height:1.55; padding:5px 4px 1px; }
-.camera-hint { max-width:1120px; margin:9px auto 0; text-align:center; color:#bab8c0; font-size:.88rem; }
-.desk-art { max-width:1120px; margin:0 auto; border-top:3px solid #76513c; box-shadow:0 11px 22px #000; }
-.side-card { background:#171a22; border:1px solid #555660; padding:12px; margin:6px 0 12px; color:#dddce3; box-shadow:0 4px 12px #0008; }
-.side-card h3 { color:#f0d4a0; font-size:1.12rem; margin:0 0 8px; }
-.side-card p,.side-card span { color:#c1c2cb; }
-.dark-day-strip { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-.dark-day { background:#0d1016; border:1px solid #494b55; text-align:center; color:#aeb1ba; padding:5px 1px; font:10px monospace; }
-.dark-day b { display:block; min-height:19px; font: bold 16px monospace; color:#e6d9bb; }
-.dark-day.ok b { color:#76d6a4; } .dark-day.no b { color:#ef8291; }
-.stButton > button { border:2px solid #7a7170!important; border-radius:1px!important; background:#252831!important; color:#f0e8da!important; font-family:'Jua',sans-serif!important; font-size:.96rem!important; box-shadow:2px 3px 0 #08090d!important; min-height:2.4rem; }
-.stButton > button:hover { background:#3c414c!important; border-color:#dfaa77!important; color:#fff!important; }
-div[data-testid="stMetric"] { background:#141820; border:1px solid #555b66; color:#eee; padding:7px; }
-div[data-testid="stMetric"] label, div[data-testid="stMetric"] [data-testid="stMetricValue"] { color:#e6e1d8; }
-.stProgress > div > div { background:#d39558!important; }
-[data-testid="stCaptionContainer"] { color:#acaeb9; }
-</style>
-"""
-
-st.markdown(BASE_CSS, unsafe_allow_html=True)
+st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
 
 
 def init_state():
@@ -85,49 +67,37 @@ def init_state():
             st.session_state[key] = value
 
 
-def start_scene_svg():
-    return '''<svg viewBox="0 0 900 390" width="100%" xmlns="http://www.w3.org/2000/svg" style="image-rendering:pixelated;display:block">
-    <rect width="900" height="390" fill="#b9ccf7"/><rect y="0" width="900" height="125" fill="#9eb4ec"/>
-    <path d="M0 124h900v75H0z" fill="#707eac"/><path d="M0 138h900v47H0z" fill="#8fa4d1"/>
-    <rect x="44" y="72" width="210" height="71" rx="25" fill="#576583" stroke="#e1e3ff" stroke-width="8"/><rect x="57" y="84" width="184" height="47" rx="20" fill="#3e617f"/>
-    <path d="M60 106h179v16H60z" fill="#7de2df"/><path d="M100 108h28v5h-28zm55-3h24v5h-24zm43 6h22v5h-22z" fill="#d5fbef"/>
-    <path d="M0 208h900v182H0z" fill="#63769b"/><path d="M0 231h900v8H0zm0 135h900v8H0z" fill="#e6e8ff"/>
-    <path d="M0 292h900v3H0z" fill="#aab7dc"/><rect x="308" y="212" width="280" height="18" fill="#dbe2ff"/><rect x="330" y="197" width="13" height="23" fill="#384968"/><rect x="346" y="193" width="12" height="27" fill="#222d4c"/><rect x="362" y="199" width="13" height="21" fill="#744d9c"/><rect x="378" y="195" width="12" height="25" fill="#586daa"/>
-    <rect x="24" y="257" width="56" height="37" fill="#f2bd72"/><rect x="33" y="245" width="38" height="14" fill="#e987a8"/><rect x="42" y="267" width="12" height="27" fill="#9c739e"/>
-    <rect x="727" y="245" width="12" height="114" fill="#fff0c1"/><rect x="727" y="256" width="12" height="13" fill="#e9819d"/><rect x="727" y="283" width="12" height="13" fill="#e9819d"/><rect x="727" y="310" width="12" height="13" fill="#e9819d"/><rect x="727" y="337" width="12" height="13" fill="#e9819d"/>
-    <g stroke="#6e5fa5" stroke-width="4" stroke-linecap="square"><path d="M121 205v-40l-12-13m12 30 14-14m-14-1-12-12M614 201v-42l-12-12m12 28 15-17m-15-3-10-12M806 203v-33l-13-12m13 24 13-14"/></g>
-    <g fill="#f47ca8"><rect x="104" y="149" width="12" height="9"/><rect x="129" y="172" width="13" height="9"/><rect x="596" y="146" width="12" height="9"/><rect x="623" y="164" width="14" height="9"/><rect x="791" y="154" width="12" height="9"/></g>
-    <g fill="#45bcb5"><rect x="176" y="114" width="21" height="8"/><rect x="166" y="106" width="16" height="8"/><rect x="195" y="105" width="15" height="9"/><rect x="485" y="120" width="22" height="9"/><rect x="479" y="111" width="16" height="10"/><rect x="505" y="111" width="16" height="10"/></g>
-    <text x="705" y="72" font-size="15" font-family="monospace" fill="#4d5e8e">SEWER TOWN</text></svg>'''
+def town_svg():
+    return '''<svg viewBox="0 0 960 410" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated">
+    <rect width="960" height="410" fill="#b7d9f3"/><rect y="0" width="960" height="160" fill="#a6c8ed"/>
+    <path d="M0 148h960v57H0z" fill="#626b9d"/><path d="M0 160h960v31H0z" fill="#7896bd"/>
+    <rect x="22" y="67" width="194" height="76" rx="25" fill="#e4c57b" stroke="#5d6399" stroke-width="6"/><rect x="38" y="80" width="164" height="50" rx="18" fill="#415d87"/>
+    <circle cx="72" cy="103" r="11" fill="#5ad3dc" stroke="#f7e6a8" stroke-width="4"/><circle cx="112" cy="103" r="11" fill="#5ad3dc" stroke="#f7e6a8" stroke-width="4"/><circle cx="152" cy="103" r="11" fill="#5ad3dc" stroke="#f7e6a8" stroke-width="4"/><path d="M53 119h39v9H53zm72 0h44v9h-44z" fill="#ef94b5"/>
+    <path d="M0 205h960v205H0z" fill="#747da8"/><path d="M0 224h960v9H0zm0 151h960v9H0z" fill="#e3e5f5"/><path d="M0 292h960v4H0z" fill="#b4bedb"/>
+    <path d="M241 0h190v149H241zM616 0h192v149H616z" fill="#6077ad"/><path d="M255 10h162v122H255zM630 10h164v122H630z" fill="#7792c2"/>
+    <g fill="#f58eb8"><rect x="274" y="86" width="15" height="15"/><rect x="303" y="66" width="20" height="12"/><rect x="371" y="103" width="24" height="14"/><rect x="657" y="80" width="21" height="14"/><rect x="740" y="45" width="17" height="13"/></g>
+    <g fill="#51c7be"><rect x="333" y="26" width="25" height="15"/><rect x="347" y="15" width="23" height="14"/><rect x="689" y="33" width="29" height="15"/><rect x="710" y="23" width="20" height="14"/></g>
+    <g stroke="#6f5798" stroke-width="5" stroke-linecap="square"><path d="M270 207v-43l-14-13m14 30 18-18m-18-1-12-13M514 207v-48l-15-14m15 32 17-17m-17-2-12-14M841 207v-42l-14-14m14 29 18-17"/></g>
+    <g fill="#f29abd"><rect x="247" y="148" width="16" height="12"/><rect x="280" y="168" width="16" height="12"/><rect x="490" y="140" width="16" height="13"/><rect x="526" y="164" width="17" height="12"/><rect x="816" y="148" width="16" height="12"/></g>
+    <g fill="#54c9c1"><rect x="391" y="175" width="25" height="12"/><rect x="382" y="164" width="19" height="13"/><rect x="410" y="163" width="19" height="13"/><rect x="779" y="177" width="25" height="12"/></g>
+    <path d="M217 210h523v12H217z" fill="#f2e7d5"/><g fill="#222c49"><rect x="385" y="199" width="11" height="18"/><rect x="401" y="195" width="10" height="22"/><rect x="417" y="200" width="11" height="17"/><rect x="433" y="196" width="10" height="21"/></g>
+    <rect x="854" y="220" width="12" height="134" fill="#fff1c8"/><path d="M854 231h12v13h-12zm0 29h12v13h-12zm0 29h12v13h-12zm0 29h12v13h-12" fill="#e783a4"/>
+    <rect x="37" y="252" width="62" height="41" fill="#f2bd72"/><rect x="48" y="240" width="40" height="14" fill="#df89ad"/><rect x="62" y="267" width="12" height="26" fill="#635b91"/>
+    <rect x="698" y="247" width="58" height="40" fill="#e8b3c9"/><rect x="705" y="235" width="44" height="14" fill="#f1d98c"/><rect x="718" y="261" width="14" height="26" fill="#726193"/>
+    <g fill="#f8e6a5"><circle cx="318" cy="207" r="5"/><circle cx="571" cy="207" r="5"/><circle cx="797" cy="207" r="5"/></g>
+    <text x="771" y="62" font-size="14" font-family="monospace" fill="#fff1c8">DRAIN TOWN</text></svg>'''
 
 
-def room_header_svg():
-    return '''<svg viewBox="0 0 1120 190" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated">
-    <defs><radialGradient id="lamp"><stop stop-color="#ffcf80" stop-opacity=".8"/><stop offset="1" stop-color="#ffb34e" stop-opacity="0"/></radialGradient></defs>
-    <rect width="1120" height="190" fill="#12151c"/><path d="M0 0h1120v48H0z" fill="#20232b"/>
-    <path d="M0 54h1120v8H0zm0 121h1120v15H0z" fill="#34353b"/>
-    <path d="M105 0h18v175h-18zm881 0h17v175h-17z" fill="#282a30"/>
-    <path d="M0 62h100v99H0zM1020 61h100v100h-100z" fill="#1b1d24" stroke="#535057" stroke-width="3"/>
-    <path d="M15 83h66v53H15zM1038 83h67v53h-67z" fill="#080b10" stroke="#63584f" stroke-width="4"/>
-    <path d="M28 94h40v4H28zm0 10h28v3H28zm0 10h36v3H28zm1021-20h44v5h-44zm0 12h30v4h-30z" fill="#5a7b83"/>
-    <path d="M0 61h90l18 13H0zm1120 0h-90l-18 13h108z" fill="#75513c"/>
-    <ellipse cx="560" cy="61" rx="210" ry="103" fill="url(#lamp)"/>
-    <path d="M490 41h140l-14 14h-112z" fill="#4c4039"/><rect x="541" y="49" width="38" height="8" fill="#ffce79"/>
-    <path d="M210 51h42l18 25h-78zM868 51h42l18 25h-78z" fill="#312f35" stroke="#8c5b50" stroke-width="4"/>
-    <path d="M218 58h26m-26 8h26m624-8h26m-26 8h26" stroke="#e5b678" stroke-width="3"/>
-    <path d="M78 164h964" stroke="#111319" stroke-width="9"/><circle cx="86" cy="173" r="3" fill="#c87763"/><circle cx="1036" cy="173" r="3" fill="#c87763"/>
-    <text x="19" y="27" fill="#b8c2c7" font-family="monospace" font-size="13">SEWER CONTROL / NIGHT WATCH</text>
-    </svg>'''
-
-
-def desk_svg():
-    return '''<svg viewBox="0 0 1120 92" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated">
-    <rect width="1120" height="92" fill="#17151a"/><path d="M0 7h1120v13H0z" fill="#805a40"/><path d="M0 20h1120v9H0z" fill="#49352f"/>
-    <path d="M0 29h1120v63H0z" fill="#262329"/><path d="M83 47h225l-20 23H101z" fill="#ded7cb"/><path d="M103 52h166v4H103zm12 9h126v3H115z" fill="#9b9ba0"/>
-    <rect x="430" y="40" width="74" height="26" fill="#31343d" stroke="#777780" stroke-width="3"/><rect x="439" y="46" width="56" height="12" fill="#91bbbd"/><circle cx="457" cy="52" r="3" fill="#f4c679"/>
-    <path d="M842 44h35v27h-35z" fill="#201b28" stroke="#796176" stroke-width="3"/><circle cx="853" cy="54" r="5" fill="#f37ea8"/><circle cx="868" cy="54" r="5" fill="#f37ea8"/><path d="M854 64h13" stroke="#f5d2cd" stroke-width="2"/>
-    <path d="M1027 33h14v49h-14z" fill="#dadbe2"/><path d="M1021 31h27v6h-27z" fill="#ce7480"/><path d="M1027 45h14v5h-14zm0 13h14v5h-14z" fill="#526b9a"/>
-    <circle cx="600" cy="52" r="12" fill="#363942" stroke="#797b81" stroke-width="3"/><path d="M600 40v24m-12-12h24m-20-8 16 16m0-16-16 16" stroke="#a4a8ae" stroke-width="2"/>
+def room_svg():
+    return '''<svg viewBox="0 0 1120 175" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated">
+    <rect width="1120" height="175" fill="#827cac"/><rect y="0" width="1120" height="29" fill="#625d88"/><path d="M0 148h1120v27H0z" fill="#d5bde3"/>
+    <path d="M0 30h1120v8H0zM0 136h1120v8H0z" fill="#b699c9"/><path d="M61 38h125v89H61zM934 38h125v89H934z" fill="#706d9f" stroke="#d5c2df" stroke-width="5"/>
+    <path d="M76 53h96v62H76zM949 53h96v62h-96z" fill="#24334f"/><path d="M84 91h80v20H84zM957 88h82v23h-82z" fill="#506f9b"/>
+    <path d="M237 0h646v29H237z" fill="#5f5a84"/><path d="M518 0h83v22h-83z" fill="#f4d184"/><path d="M530 22h59v6h-59z" fill="#fff0c1"/>
+    <path d="M297 35h13v93h-13zm512 0h13v93h-13z" fill="#aa8db7"/><path d="M309 56h500v9H309z" fill="#dbb6c8"/>
+    <g fill="#4b4c71"><rect x="239" y="74" width="34" height="42"/><rect x="846" y="72" width="38" height="44"/></g>
+    <path d="M256 84h17m573-2h18" stroke="#a9d8d0" stroke-width="4"/><path d="M0 163h1120" stroke="#765d82" stroke-width="4"/>
+    <text x="22" y="22" fill="#f4e9d8" font-family="monospace" font-size="13">DRAIN TOWN · NIGHT SHIFT CONTROL ROOM</text>
     </svg>'''
 
 
@@ -135,20 +105,18 @@ def monitor_svg(route, idx):
     water = int(route[0] * 24 + 14)
     debris = int(route[2] * 8)
     rust_count = int(route[3] * 5)
-    debris_rects = "".join(f'<rect x="{218+j*17}" y="{74-(j%2)*8}" width="8" height="7" fill="{["#cb6882","#52b9ad","#d7ad62"][j%3]}"/>' for j in range(debris))
+    debris_rects = "".join(f'<rect x="{218+j*17}" y="{74-(j%2)*8}" width="8" height="7" fill="{["#cb6882", "#52b9ad", "#d7ad62"][j%3]}"/>' for j in range(debris))
     rust_rects = "".join(f'<rect x="{85+j*21}" y="{44+(j%2)*24}" width="9" height="8" fill="#a75d61"/>' for j in range(rust_count))
-    glints = "".join(f'<rect x="{35+j*51}" y="{18+(j%3)*9}" width="2" height="2" fill="#b6c4bd" opacity=".55"/>' for j in range(10))
     return f'''<svg viewBox="0 0 330 155" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated">
-    <rect width="330" height="155" fill="#111722"/><rect y="12" width="330" height="127" fill="#252a35"/>
-    <path d="M0 21h330v10H0zm0 96h330v13H0z" fill="#343943"/><path d="M12 41h32v61H12zm276-5h28v66h-28z" fill="#1b2029"/>
-    <rect x="31" y="40" width="268" height="72" rx="32" fill="#45464a" stroke="#858184" stroke-width="7"/>
-    <rect x="46" y="61" width="238" height="47" rx="22" fill="#203c48"/>
-    <rect x="48" y="{108-water}" width="234" height="{water}" rx="12" fill="#4f8d91"/><path d="M63 {106-water}h39v4H63zm95 8h32v3h-32zm68-10h39v4h-39z" fill="#bed2c6" opacity=".8"/>
-    {debris_rects}{rust_rects}{glints}
-    <path d="M78 45l19 11m149-7-15 12" stroke="#a9a39a" stroke-width="3" opacity=".5"/>
-    <rect x="7" y="5" width="47" height="15" fill="#0a0d12"/><text x="11" y="16" font-size="10" font-family="monospace" fill="#c4cbd0">CAM 0{idx+1}</text>
-    <circle cx="310" cy="13" r="4" fill="#c66a72"/><rect y="140" width="330" height="15" fill="#151922"/>
-    <text x="12" y="151" font-size="8" font-family="monospace" fill="#9ca6aa">LIVE / DRAIN {idx+1:02d}</text></svg>'''
+    <rect width="330" height="155" fill="#9ec7e8"/><rect y="12" width="330" height="127" fill="#64769e"/>
+    <path d="M0 21h330v10H0zm0 96h330v13H0z" fill="#9da8ce"/><path d="M12 41h32v61H12zm276-5h28v66h-28z" fill="#5b5c82"/>
+    <rect x="31" y="40" width="268" height="72" rx="32" fill="#d3b6cd" stroke="#f1dfdb" stroke-width="7"/>
+    <rect x="46" y="61" width="238" height="47" rx="22" fill="#31586e"/>
+    <rect x="48" y="{108-water}" width="234" height="{water}" rx="12" fill="#63c9cf"/><path d="M63 {106-water}h39v4H63zm95 8h32v3h-32zm68-10h39v4h-39z" fill="#d8fff1" opacity=".8"/>
+    {debris_rects}{rust_rects}<path d="M78 45l19 11m149-7-15 12" stroke="#916580" stroke-width="3" opacity=".65"/>
+    <rect x="7" y="5" width="47" height="15" fill="#202338"/><text x="11" y="16" font-size="10" font-family="monospace" fill="#fff2d6">CAM 0{idx+1}</text>
+    <circle cx="310" cy="13" r="4" fill="#ec7c91"/><rect y="140" width="330" height="15" fill="#30334a"/>
+    <text x="12" y="151" font-size="8" font-family="monospace" fill="#d6e4dc">LIVE / DRAIN {idx+1:02d}</text></svg>'''
 
 
 def risk(route):
@@ -174,13 +142,12 @@ def train_after_reveal():
     probs = [risk(route) for route in routes]
     grad_w = [sum((p-y)*route[k] for route, p, y in zip(routes, probs, labels))/4 for k in range(4)]
     grad_b = sum(p-y for p, y in zip(probs, labels))/4
-    magnitude = math.sqrt(sum(g*g for g in grad_w) + grad_b*grad_b)
+    st.session_state.gradient = math.sqrt(sum(g*g for g in grad_w) + grad_b*grad_b)
     st.session_state.weights = [w - LEARNING_RATE*g for w, g in zip(st.session_state.weights, grad_w)]
     st.session_state.bias -= LEARNING_RATE * grad_b
     eps = 1e-8
     after = [risk(route) for route in routes]
     st.session_state.loss = -sum(y*math.log(max(eps,p))+(1-y)*math.log(max(eps,1-p)) for y,p in zip(labels,after))/4
-    st.session_state.gradient = magnitude
 
 
 def choose_route(idx):
@@ -206,8 +173,9 @@ def calendar_html(dark=False):
     return '<div class="dark-day-strip">' + "".join(cells) + '</div>' if dark else '<div class="day-strip">' + "".join(cells) + '</div>'
 
 
-def restart_cycle():
-    st.session_state.cycle += 1
+def reset_week(increment=False):
+    if increment:
+        st.session_state.cycle += 1
     st.session_state.day = 1
     st.session_state.wins = 0
     st.session_state.calendar = ["", "", "", "", "", "", ""]
@@ -221,57 +189,50 @@ def restart_cycle():
 init_state()
 
 if st.session_state.screen == "start":
-    st.markdown('<div class="hero"><div class="small-label">PIXEL SEWER MAINTENANCE SIMULATOR</div><h1>하수관 AI 정비대</h1><p>작은 단서들을 모아 이상 관로를 찾아내세요.<br>경사하강법으로 AI도 함께 성장합니다!</p></div>', unsafe_allow_html=True)
-    st.markdown('<div class="scene-frame">' + start_scene_svg() + '</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><div class="small-label">A PIXEL-ART SEWER TOWN STORY</div><h1>하수관 AI 정비대</h1><p>작은 마을의 하수관을 지키는 야간 정비사가 되어<br>네 개의 CCTV 속 이상 징후를 찾아보세요.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="pixel-frame">' + town_svg() + '</div>', unsafe_allow_html=True)
     _, center, _ = st.columns([1, 1, 1])
     with center:
         if st.button("▶  START  ◀", use_container_width=True, key="start_game"):
-            st.session_state.day = 1
-            st.session_state.wins = 0
-            st.session_state.calendar = ["", "", "", "", "", "", ""]
-            st.session_state.weights = [0.35, 0.35, 0.35, 0.35]
-            st.session_state.bias = -0.75
-            new_day()
+            st.session_state.cycle = 1
+            reset_week()
             st.rerun()
-    st.markdown('<div class="hero"><p><span class="pill">4분할 CCTV</span><span class="pill">7일 근무</span><span class="pill">AI 경사하강법</span></p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><p><span class="pill">4분할 CCTV</span><span class="pill">7일 야간 근무</span><span class="pill">경사하강법으로 AI 학습</span></p></div>', unsafe_allow_html=True)
 
 elif st.session_state.screen == "game":
-    st.markdown(DARK_CSS, unsafe_allow_html=True)
-    st.markdown(f'<div class="game-header"><span class="badge">하수관 관리부 · 야간 근무</span><span class="badge">NIGHT {st.session_state.day}</span><span class="badge">1 AM</span><h1>관제실 — 이상 관로를 찾아라</h1><div>네 개의 CCTV를 확인하고 문제가 있는 관로를 선택하세요.</div></div>', unsafe_allow_html=True)
-    st.markdown('<div class="room-art">' + room_header_svg() + '</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="hero"><span class="pill">근무 {st.session_state.cycle}회차</span><span class="pill">DAY {st.session_state.day} / 7</span><span class="pill">NIGHT {st.session_state.day} · 1 AM</span><h1>작은 하수도 마을의 관제실</h1></div>', unsafe_allow_html=True)
+    st.markdown('<div class="room-scene">' + room_svg() + '</div>', unsafe_allow_html=True)
     st.markdown('<div class="screen-frame"><div class="screen-titlebar"><span>▣ SEWER CCTV ARRAY</span><span>REC ● &nbsp; SIGNAL STABLE</span></div>', unsafe_allow_html=True)
     monitor_cols = st.columns(2, gap="small")
     for idx, route in enumerate(st.session_state.routes):
-        col = monitor_cols[idx % 2]
-        with col:
+        with monitor_cols[idx % 2]:
             score = risk(route)
             st.markdown(f'<div class="monitor-card"><div class="monitor-label">CAM 0{idx+1}　/　AI 이상 확률 {score:.0%}</div><div class="monitor-art">{monitor_svg(route, idx)}</div><div class="sensor-readout">압력 {route[0]:.2f}　소음 {route[1]:.2f}<br>침전물 {route[2]:.2f}　부식 {route[3]:.2f}</div></div>', unsafe_allow_html=True)
             if st.button(f"CAM 0{idx+1} · 관로 점검", key=f"inspect_{st.session_state.cycle}_{st.session_state.day}_{idx}", use_container_width=True):
                 choose_route(idx)
                 st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<div class="camera-hint">▣ 화면의 센서 기록을 비교해 이상이 있는 관로를 골라주세요. 선택하면 정답 공개 후 AI가 학습합니다.</div>', unsafe_allow_html=True)
-    st.markdown('<div class="desk-art">' + desk_svg() + '</div>', unsafe_allow_html=True)
+    st.markdown('<div class="dialog"><span class="dialog-name">야간 정비사</span><div class="dialog-text">네 개의 CCTV를 확인해 이상이 있는 하수관을 골라야 해. 작은 단서를 잘 살펴보자… AI도 매일 정답을 배워서 조금씩 나아질 거야!</div></div>', unsafe_allow_html=True)
 
     left, right = st.columns([1.5, 1], gap="medium")
     with left:
-        st.markdown('<div class="side-card"><h3>🧠 경사하강법 학습 노트</h3><span>로지스틱 회귀가 압력·소음·침전물·부식 특징의 가중치를 학습합니다.</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="side-card"><h3>🧠 경사하강법 학습 노트</h3><span>관로 센서 특징에 따라 이상 확률을 예측하고, 점검 결과의 오차로 모델 가중치를 업데이트합니다.</span></div>', unsafe_allow_html=True)
         m1, m2 = st.columns(2)
-        m1.metric("Loss · BCE", "대기" if st.session_state.loss is None else f'{st.session_state.loss:.3f}')
-        m2.metric("Gradient 크기", "대기" if st.session_state.gradient is None else f'{st.session_state.gradient:.3f}')
+        m1.metric("Loss · BCE", "대기 중" if st.session_state.loss is None else f'{st.session_state.loss:.3f}')
+        m2.metric("Gradient 크기", "대기 중" if st.session_state.gradient is None else f'{st.session_state.gradient:.3f}')
         for label, weight in zip(FEATURES, st.session_state.weights):
             st.progress(min(1.0, max(0.0, (weight + 1) / 2)), text=f"{label} 가중치　{weight:+.2f}")
-        st.caption(f"학습률 η = {LEARNING_RATE:.2f} · 매 점검 후 4개 관로 라벨로 업데이트")
+        st.caption(f"학습률 η = {LEARNING_RATE:.2f} · 매 점검 후 네 구간 라벨을 이용해 갱신")
     with right:
-        st.markdown('<div class="side-card"><h3>📅 이번 주 근무 달력</h3>' + calendar_html(dark=True) + f'<p style="margin:.7rem 0 0">현재까지 성공: {st.session_state.wins}회</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="side-card"><h3>📅 이번 주 기록</h3>' + calendar_html(dark=True) + f'<p style="margin:.7rem 0 0">현재까지 성공: {st.session_state.wins}회</p></div>', unsafe_allow_html=True)
         st.markdown('<div class="side-card"><h3>근무 지침</h3><span>7일 동안 이상 관로를 찾아보세요. 5회 이상 성공하면 승진, 3~4회면 다음 주 재도전, 3회 미만이면 해고입니다.</span></div>', unsafe_allow_html=True)
     if st.session_state.last_result:
         result = st.session_state.last_result
         if result["success"]:
-            st.success(f'정확해요! CAM 0{result["target"]+1}에서 이상을 찾았습니다. 경사하강법 업데이트 후 Loss: {st.session_state.loss:.3f}')
+            st.success(f'찾았다! CAM 0{result["target"]+1}에 이상이 있었어. 경사하강법이 새 기록을 학습했어. (Loss {st.session_state.loss:.3f})')
         else:
-            st.error(f'놓쳤습니다. 선택한 곳은 CAM 0{result["chosen"]+1}, 실제 이상은 CAM 0{result["target"]+1}이었습니다. Loss: {st.session_state.loss:.3f}')
-        if st.button("다음 야간 근무 →", key=f"next_{st.session_state.cycle}_{st.session_state.day}", use_container_width=True):
+            st.error(f'아차, 이상은 CAM 0{result["target"]+1}이었어. 다음에는 AI가 이번 오차를 반영할 거야. (Loss {st.session_state.loss:.3f})')
+        if st.session_state.day < 7 and st.button("다음 날 근무하기 →", key=f"next_{st.session_state.cycle}_{st.session_state.day}", use_container_width=True):
             st.session_state.day += 1
             st.session_state.last_result = None
             new_day()
@@ -280,10 +241,10 @@ elif st.session_state.screen == "game":
 elif st.session_state.screen == "summary":
     wins = st.session_state.wins
     if wins >= 5:
-        heading, mood, message = "승진 축하해요!", "🌟", f"7일 중 {wins}회 성공! 관제팀의 믿음직한 팀장으로 승진했습니다."
+        heading, mood, message = "승진 축하해요!", "🌟", f"7일 중 {wins}회 성공! 작은 마을 하수관 관리팀의 팀장으로 승진했습니다."
         next_label, action = "처음 화면으로", "start"
     elif wins >= 3:
-        heading, mood, message = "한 주 더 도전!", "🌱", f"7일 중 {wins}회 성공했습니다. 조금 더 경험을 쌓을 기회가 생겼어요. 다음 7일을 시작합니다!"
+        heading, mood, message = "한 주 더 도전!", "🌱", f"7일 중 {wins}회 성공했습니다. 조금 더 경험을 쌓을 기회가 생겼어요."
         next_label, action = "다음 7일 시작", "retry"
     else:
         heading, mood, message = "오늘은 여기까지…", "🌧️", f"7일 중 {wins}회 성공했습니다. 이번에는 회사를 떠나게 되었지만, 배운 내용을 기억해요."
@@ -293,7 +254,7 @@ elif st.session_state.screen == "summary":
     with center:
         if st.button(next_label, use_container_width=True, key="summary_action"):
             if action == "retry":
-                restart_cycle()
+                reset_week(increment=True)
             else:
                 st.session_state.screen = "start"
             st.rerun()
