@@ -1,156 +1,86 @@
-"""Small-grid pixel-art scenes for the Drain Town game.
+"""Grid-based pixel scenes for the Drain Town game.
 
-Every scene is drawn on a fixed low-resolution grid and enlarged with nearest-neighbour
-rendering. The palette and clustered tiles are intentionally limited for a crisp sprite look.
+All coordinates are integer tiles enlarged with nearest-neighbour rendering,
+so scene edges stay deliberately chunky instead of looking like smooth shapes.
 """
-from html import escape
 
-P = 8
-
-
-def _svg_open(width, height, background):
-    return [f'<svg viewBox="0 0 {width*P} {height*P}" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated;shape-rendering:crispEdges"><rect width="100%" height="100%" fill="{background}"/>']
+S = 8
 
 
-def _px(out, x, y, color, w=1, h=1):
-    out.append(f'<rect x="{x*P}" y="{y*P}" width="{w*P}" height="{h*P}" fill="{color}"/>')
-
-
-def _line(out, x1, y1, x2, y2, color, thickness=1):
-    # Orthogonal, pixel-grid line segments only.
-    if x1 == x2:
-        _px(out, x1, min(y1,y2), color, thickness, abs(y2-y1)+thickness)
-    elif y1 == y2:
-        _px(out, min(x1,x2), y1, color, abs(x2-x1)+thickness, thickness)
-
-
-def _tree(out, x, y, variant=0):
-    trunk = ['#713e78', '#624982', '#8a477c'][variant % 3]
-    leaves = ['#32c6c7', '#40bfc2', '#50cdb9'][variant % 3]
-    shadow = ['#145b9d', '#155293', '#1b639a'][variant % 3]
-    _px(out, x+3, y+5, shadow, 5, 4)
-    _px(out, x+2, y+3, leaves, 6, 3); _px(out, x+1, y+4, leaves, 8, 2)
-    _px(out, x+3, y+2, '#71e0cb', 3, 1); _px(out, x+6, y+3, '#77ded5', 2, 1)
-    _px(out, x+4, y+8, trunk, 2, 4); _px(out, x+2, y+10, trunk, 2, 1); _px(out, x+6, y+9, trunk, 2, 1)
-    _px(out, x+4, y+8, '#b75c9a', 1, 1)
-
-
-def _flower(out, x, y, color='#f078b1'):
-    _px(out, x+1, y, color); _px(out, x, y+1, color); _px(out, x+1, y+1, '#ffe47b'); _px(out, x+2, y+1, color); _px(out, x+1, y+2, color)
-    _px(out, x+1, y+3, '#328978')
+def rect(x, y, w, h, color):
+    return f'<rect x="{x*S}" y="{y*S}" width="{w*S}" height="{h*S}" fill="{color}"/>'
 
 
 def start_scene():
-    """Town outfall: front-facing round sewer mouth with visible water spilling out."""
-    W,H=120,44; o=_svg_open(W,H,'#5489cf')
-    _px(o,0,0,'#72a5dc',W,18); _px(o,0,18,'#193d8b',W,26)
-    # Distant tiled riverbank and pixel clouds.
-    for x,y,w in [(4,4,8),(18,7,10),(77,3,11),(101,6,9)]:
-        _px(o,x,y,'#b3c9e8',w,1); _px(o,x+2,y-1,'#d7e4f2',max(2,w-5),1)
-    # Distant sewer-town wall, block masonry, and bright vegetation.
-    _px(o,0,14,'#465f9d',120,5); _px(o,0,15,'#7794bc',120,1)
-    for x in range(2,120,8):
-        _px(o,x,14,'#263f86',1,5); _px(o,x+4,16,'#5478af',2,1)
-    for x,y,v in [(7,6,0),(46,5,1),(82,5,2),(108,8,1)]: _tree(o,x,y,v)
-    for x,y in [(17,13),(37,10),(56,12),(74,11),(95,13),(114,12)]: _flower(o,x,y)
-    # Opening silhouette: stepped pixel rings, viewed straight on, not a pipe sidewall.
+    out = ['<svg viewBox="0 0 960 400" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated;shape-rendering:crispEdges">']
+    out.append(rect(0,0,120,50,'#3f72be'))
+    out.append(rect(0,0,120,17,'#5794d2'))
+    # Waterway wall and distant pixel plants
+    out.append(rect(0,16,120,7,'#263f86'))
+    for x in range(0,120,8): out.append(rect(x,16,1,7,'#19336f'))
+    for x,y,c in [(4,9,'#35c7c1'),(14,12,'#ef75ae'),(46,8,'#51d4bd'),(57,12,'#ec77a8'),(91,9,'#46c7c3'),(106,12,'#f082b1')]:
+        out.extend([rect(x,y,3,1,c),rect(x+1,y-1,2,1,c),rect(x+1,y+1,1,2,'#754683')])
+    # Riverbed / town path
+    out.extend([rect(0,23,120,27,'#344e9b'),rect(0,24,120,1,'#d7e1ef'),rect(0,42,120,1,'#d7e1ef')])
+    for x in range(0,120,12): out.append(rect(x,31,5,1,'#536fb0'))
+    # Front-facing circular sewer opening with stacked pixel rings
     cx,cy=27,23
-    for r,col in [(13,'#101d59'),(11,'#e7d59b'),(10,'#31549c'),(8,'#5e7897'),(7,'#163d6a')]:
-        for yy in range(cy-r,cy+r+1):
-            for xx in range(cx-r,cx+r+1):
-                d=max(abs(xx-cx),abs(yy-cy))
-                if r-1 <= d <= r: _px(o,xx,yy,col)
-    # Inner tunnel highlights and blue-green water flowing from the circular mouth.
-    _px(o,cx-5,cy-5,'#758ca4',10,1); _px(o,cx-6,cy-4,'#758ca4',1,7); _px(o,cx+5,cy-4,'#758ca4',1,7)
-    _px(o,cx-6,cy+1,'#37c6e0',12,3); _px(o,cx-5,cy,'#9af0e8',10,1)
-    for yy,xx,ww,col in [(29,22,10,'#31b9df'),(32,23,8,'#24a9d2'),(35,21,12,'#50d3dd'),(38,18,18,'#8de8df'),(40,14,26,'#d1f6dc')]: _px(o,xx,yy,col,ww,1)
-    # Ripples, stones and foam, rendered as individual pixel clusters.
-    for x,y,col in [(10,36,'#98e6df'),(47,37,'#a8eee5'),(51,39,'#50c5d7'),(39,34,'#f8e276'),(8,41,'#f079b0'),(53,42,'#e77ba9')]: _px(o,x,y,col,2,1)
-    # Pixel sea grass and coral on either bank.
-    for x,y,v in [(64,12,0),(71,9,1),(89,13,2),(100,11,0)]:
-        _px(o,x,y+2,'#8c4c91',1,4); _px(o,x-1,y,'#ef79b1',2,2); _px(o,x+2,y+2,'#e765a9',1,2)
-    for x in range(59,120,7): _px(o,x,18,'#2d4d95',1,26)
-    # foreground walkway and drainage channel.
-    _px(o,0,19,'#d4dcef',120,1); _px(o,0,20,'#a6bde1',120,1); _px(o,0,41,'#d7dfef',120,1)
-    for x in range(0,120,6): _px(o,x,42,'#4565a9',3,1)
-    o.append('<text x="520" y="54" font-family="monospace" font-size="20" fill="#fff1bd">DRAIN TOWN WATERWAY</text>')
-    o.append('</svg>'); return ''.join(o)
+    for radius,color in [(14,'#101d59'),(12,'#dfcf9a'),(10,'#60758d'),(8,'#143b70')]:
+        for yy in range(cy-radius,cy+radius+1):
+            for xx in range(cx-radius,cx+radius+1):
+                if max(abs(xx-cx),abs(yy-cy))==radius: out.append(rect(xx,yy,1,1,color))
+    out.extend([rect(cx-6,cy-1,12,3,'#39c5df'),rect(cx-5,cy-2,10,1,'#b3f4e9'),rect(cx-5,cy+2,10,2,'#28b4d7')])
+    for y,x,w,c in [(27,22,10,'#26abd0'),(30,20,14,'#49ccdc'),(33,17,20,'#8de6df'),(35,12,30,'#c6f0dc')]: out.append(rect(x,y,w,1,c))
+    # Pixel ripples / foam
+    for x,y,c in [(5,36,'#f5dd78'),(9,38,'#a2f0e2'),(39,37,'#ee79ad'),(47,35,'#a1f2e3'),(53,39,'#f0d45e')]: out.append(rect(x,y,2,1,c))
+    out.append('</svg>')
+    return ''.join(out)
 
 
-def _pipe_view(out, x, y, w, h, idx, route=None):
-    """Pixel-grid CCTV view with an outlined conduit and characteristic clusters."""
-    route = route or [.3,.3,.3,.3]
-    _px(out,x,y,'#315ca4',w,h); _px(out,x+1,y+1,'#6fa5d5',w-2,h-2)
-    _px(out,x+1,y+1,'#59699a',w-2,2); _px(out,x+1,y+h-3,'#59699a',w-2,2)
-    # conduit cross-section, with chunky multi-tone pixel ring
-    px=x+w//2; py=y+h//2
-    rw=max(7,w//4); rh=max(5,h//3)
-    _px(out,px-rw-2,py-rh-2,'#101d59',2*rw+5,2*rh+5)
-    _px(out,px-rw,py-rh,'#ead69a',2*rw+1,2*rh+1)
-    _px(out,px-rw+1,py-rh+1,'#7c789f',2*rw-1,2*rh-1)
-    _px(out,px-rw+3,py-rh+2,'#142d60',2*rw-5,2*rh-3)
-    water=int(max(1,(2*rh-4)*route[0]))
-    _px(out,px-rw+4,py+rh-2-water,2*rw-7,water,'#39bfdf')
-    _px(out,px-rw+5,py+rh-3-water, max(2,2*rw-10),1,'#b1f5e8')
-    # pressure bubbles, sediment, corrosion pixels
-    for j in range(2+int(route[1]*5)):
-        bx=x+3+(j*13+idx*7)%(w-7); by=y+4+(j*7)%(h-10)
-        _px(out,bx,by,'#b5f2e7',1,1)
-    for j in range(int(route[2]*7)):
-        _px(out,px-rw+4+j*2,py+rh-4,'#f2d164' if j%2 else '#ee78aa',1,1)
-    for j in range(int(route[3]*5)):
-        _px(out,x+3+j*3,y+3+(j%2),'#e77891',2,1)
-    _px(out,x+1,y+1,'#101d59',8,2)
-    out.append(f'<text x="{(x+2)*P}" y="{(y+3)*P}" font-family="monospace" font-size="10" fill="#fff1bd">CAM 0{idx+1}</text>')
+def _calendar(x, y, title='WEEK'):
+    parts=[rect(x,y,11,14,'#101c59'),rect(x+1,y+1,9,12,'#f5e8bd'),rect(x+1,y+1,9,3,'#e979a8'),rect(x+3,y,1,2,'#101c59'),rect(x+8,y,1,2,'#101c59')]
+    for yy in (5,8,11):
+        for xx in (x+2,x+5,x+8): parts.append(rect(xx,yy,2,1,'#3459a3'))
+    parts.extend([rect(x+5,y+10,1,2,'#18a77e'),rect(x+5,y+11,2,1,'#18a77e')])
+    return ''.join(parts)
 
 
 def room_scene(routes):
-    """One coherent pixel-art room: fixtures on back wall, giant CCTV ahead, desk foreground."""
-    W,H=140,66; o=_svg_open(W,H,'#7979ae')
-    # wall tile pattern and wainscot
-    for y in range(0,42,6):
-        _px(o,0,y,'#7775a6',W,1); _px(o,0,y+1,'#8782b4',W,4)
-        for x in range((y//6%2)*7,W,14): _px(o,x,y+1,'#6c6d9d',1,4)
-    _px(o,0,41,'#d9c4dd',W,2); _px(o,0,43,'#505897',W,23)
-    for x in range(0,W,8): _px(o,x,43,'#7180b6',1,23)
-    # left wall PC: blue CRT and pixel file icons
-    _px(o,4,10,'#101d59',17,12); _px(o,5,11,'#e6d49d',15,10); _px(o,6,12,'#1b3d82',13,7)
-    _px(o,7,13,'#42c7e0',11,5); _px(o,8,14,'#d2f3d9',5,1); _px(o,8,16,'#e97eae',7,1)
-    _px(o,11,22,'#101d59',3,3); _px(o,7,25,'#101d59',11,1)
-    _px(o,6,28,'#5ce0ce',2,2); _px(o,10,28,'#f6df82',2,2); _px(o,14,28,'#f17eaf',2,2)
-    # right wall calendar with marked days
-    _px(o,119,10,'#101d59',16,17); _px(o,120,11,'#f5e7bc',14,15); _px(o,120,11,'#e975a8',14,3)
-    for xx in (123,131): _px(o,xx,9,'#101d59',1,4)
-    for yy in (16,20,24):
-        for xx in (122,126,130,134): _px(o,xx,yy,'#3356a5',2,1)
-    _px(o,125,23,'#4cdb9c',2,1); _px(o,126,22,'#4cdb9c',1,2)
-    # central giant screen bezel, with all four cameras inside the same screen.
-    sx,sy,sw,sh=29,5,82,36
-    _px(o,sx-2,sy-2,'#101d59',sw+4,sh+4); _px(o,sx,sy,'#263d8c',sw,sh); _px(o,sx+1,sy+1,'#111a3d',sw-2,sh-2)
-    _px(o,sx+2,sy+2,'#c7cbe0',sw-4,1); _px(o,sx+2,sy+sh-3,'#c7cbe0',sw-4,1)
-    gap=2; mw=(sw-6)//2; mh=(sh-6)//2
+    """Perspective office with side-wall calendars, one 2x2 wall monitor, desk PC."""
+    out=['<svg viewBox="0 0 1200 680" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated;shape-rendering:crispEdges">']
+    # Room shell: ceiling, back wall, side walls, and parquet floor in chunky pixel perspective.
+    out += [rect(0,0,120,85,'#d1d1d0'),'<path d="M0 0H120L103 10H17Z" fill="#bdbfbe"/>', '<path d="M0 0L17 10V47L0 62Z" fill="#e4e4e1"/>','<path d="M120 0L103 10V47L120 62Z" fill="#b9babd"/>',rect(17,10,86,37,'#efefeb')]
+    out.append(rect(0,47,120,38,'#765646'))
+    # floorboards with perspective lines, narrow planks and alternating wood pixels
+    out.append('<path d="M0 47H120L120 85H0Z" fill="#80604d"/>')
+    for x in range(0,121,4): out.append(f'<path d="M60 47L{x} 85" stroke="#a77b5d" stroke-width="2"/>')
+    for y in (51,56,62,69,77,84): out.append(f'<path d="M{max(0,60-(y-47)*1.6):.0f} {y}H{min(120,60+(y-47)*1.6):.0f}" stroke="#4a3c48" stroke-width="1"/>')
+    for x,y in [(8,57),(22,67),(40,53),(78,59),(101,71),(57,78),(90,53),(31,77)]: out.append(rect(x,y,2,1,'#b18461'))
+    # Back wall dado rail, baseboards and checker-like trim
+    out += [rect(17,45,86,2,'#8b7899'),rect(17,47,86,1,'#31458d'),rect(0,61,120,2,'#293f89')]
+    # The single giant central CCTV screen, with four feeds inside one bezel.
+    out += [rect(38,15,44,28,'#101c59'),rect(40,17,40,24,'#172a70'),rect(41,18,38,22,'#20264f')]
+    # Pixel screen frames and divider
+    out += [rect(41,18,38,1,'#d6d7dc'),rect(41,39,38,1,'#d6d7dc'),rect(41,18,1,22,'#d6d7dc'),rect(78,18,1,22,'#d6d7dc'),rect(59,18,1,22,'#a8b8d2'),rect(41,29,38,1,'#a8b8d2')]
+    # CCTV wells, pixel rings and sensor patterns per quadrant.
     for i,route in enumerate(routes):
-        xx=sx+2+(i%2)*(mw+gap); yy=sy+2+(i//2)*(mh+gap)
-        _pipe_view(o,xx,yy,mw,mh,i,route)
-    # top signal LEDs and hanging lamp
-    _px(o,67,1,'#101d59',6,2); _px(o,68,1,'#ffe178',4,1); _px(o,69,3,'#fff0bb',2,2)
-    for x,c in [(35,'#f07fa9'),(38,'#f4d45f'),(104,'#61ddc8')]: _px(o,x,3,c,1,1)
-    # desk, keyboard, mug and little plant in foreground
-    _px(o,0,49,'#6f493c',W,3); _px(o,0,52,'#46364c',W,1); _px(o,0,53,'#754a42',W,13)
-    for x in range(0,W,12): _px(o,x,50,'#9b654a',7,1)
-    _px(o,17,47,'#f2e7ca',17,3); _px(o,19,48,'#d9d7d1',13,1); _px(o,20,49,'#b1b8c5',11,1)
-    _px(o,64,47,'#101d59',12,4); _px(o,65,48,'#58c9db',10,2); _px(o,67,51,'#101d59',6,2)
-    _px(o,104,46,'#101d59',7,5); _px(o,105,47,'#f582af',2,2); _px(o,109,47,'#f582af',2,2)
-    _px(o,106,51,'#fff0c8',3,1)
-    # office chair silhouette, foreground center
-    _px(o,57,57,'#101d59',25,2); _px(o,59,54,'#243b87',21,4); _px(o,62,53,'#3459a3',15,1)
-    _px(o,68,58,'#101d59',3,4); _px(o,61,62,'#101d59',15,1)
-    # floor markers and shadows
-    _px(o,0,64,'#111d59',W,2); _px(o,5,59,'#9981ab',6,1); _px(o,127,59,'#9981ab',6,1)
-    o.append('<text x="20" y="28" font-family="monospace" font-size="8" fill="#fff1bd">PC</text>')
-    o.append('<text x="952" y="28" font-family="monospace" font-size="8" fill="#fff1bd">CAL</text>')
-    o.append('</svg>'); return ''.join(o)
-
-
-def result_art():
-    return '<div style="font:12px monospace;color:#fff1bd">DRAIN TOWN PIXEL SPRITES</div>'
+        bx=42+(i%2)*19; by=19+(i//2)*11
+        out.extend([rect(bx,by,17,9,'#386da5'),rect(bx+1,by+1,15,7,'#7597b5'),rect(bx+3,by+2,11,5,'#182f60'),rect(bx+4,by+5,9,max(1,int(route[0]*2)),'#36c5dc')])
+        for j in range(int(route[2]*4)): out.append(rect(bx+4+j*2,by+6,1,1,'#ef78a9'))
+        for j in range(int(route[3]*3)): out.append(rect(bx+2+j*3,by+2,1,1,'#e0788c'))
+        out.append(f'<text x="{bx*S+5}" y="{by*S+10}" font-family="monospace" font-size="7" fill="#fff0c8">{i+1}</text>')
+    # Two calendars are actually attached to opposite side walls.
+    out += [_calendar(7,28),_calendar(102,28)]
+    out += [rect(5,25,15,1,'#243b80'),rect(100,25,15,1,'#243b80')]
+    # Wall notices / pixel fixtures
+    out += [rect(22,25,7,5,'#536ba4'),rect(23,26,5,3,'#f0dfab'),rect(91,25,6,5,'#536ba4'),rect(92,26,4,3,'#e978a8')]
+    # Office desk foreground, front edge, legs and surface.
+    out += ['<path d="M18 49H102L111 59H9Z" fill="#a36d4f"/>',rect(9,58,102,3,'#101c59'),rect(14,61,4,14,'#42364b'),rect(102,61,4,14,'#42364b'),rect(17,58,86,1,'#d39b69')]
+    for x in range(20,101,12): out.append(rect(x,51,7,1,'#c28a60'))
+    # Desktop CRT computer sitting on the desk, keyboard and mug.
+    out += [rect(51,39,19,12,'#101c59'),rect(53,40,15,8,'#347fbd'),rect(54,41,13,5,'#64d6d7'),rect(55,43,9,1,'#e6f4ce'),rect(58,51,5,2,'#17265d'),rect(53,53,15,2,'#101c59'),rect(43,55,18,1,'#e5e0d0'),rect(43,56,18,2,'#5168a2')]
+    out += [rect(81,50,5,6,'#101c59'),rect(82,51,3,4,'#e57ca8'),rect(86,51,2,1,'#f8eab0'),rect(32,52,5,4,'#e8e2d5'),rect(32,52,5,1,'#101c59')]
+    # Chair in front of desk, pixel silhouette
+    out += [rect(49,62,22,2,'#101c59'),rect(51,64,18,5,'#354f9c'),rect(55,69,10,2,'#101c59'),rect(59,71,3,5,'#101c59'),rect(53,76,15,2,'#101c59')]
+    out.append('</svg>')
+    return ''.join(out)
