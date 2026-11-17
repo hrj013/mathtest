@@ -2,6 +2,7 @@ import base64
 import math
 import random
 from io import BytesIO
+from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -10,22 +11,20 @@ import pixel_art as art
 st.set_page_config(page_title="하수관 야간정비대", page_icon="🚰", layout="wide", initial_sidebar_state="collapsed")
 FEATURES = ["수압", "소음", "침전물", "부식"]
 LEARNING_RATE = 0.9
+ASSETS = Path(__file__).parent / "assets"
 
 st.markdown("""<style>
 @import url('https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap');
 :root{--navy:#101c59;--paper:#f5e8bd}
 html,body,[class*="css"]{font-family:'Gowun Dodum',sans-serif}.stApp{background:#15182e;color:#f5e8bd}
-.block-container{max-width:1380px;padding-top:.35rem;padding-bottom:1rem}h1,h2,h3{font-family:'Jua',sans-serif!important}
+.block-container{max-width:1380px;padding-top:.25rem;padding-bottom:1rem}h1,h2,h3{font-family:'Jua',sans-serif!important}
 .hero{text-align:center;color:#f5e8bd;padding:2px 0 7px}.hero h1{color:#f5e8bd;text-shadow:2px 3px #101c59;margin:2px}
-.logo-mark{font-family:'Jua',sans-serif;color:#f8eab9;-webkit-text-stroke:2px #101c59;text-shadow:4px 4px #101c59;font-size:clamp(2.5rem,5vw,4.2rem);text-align:center;letter-spacing:.06em;margin:0 0 4px}
-.pill{display:inline-block;background:#f7edcf;border:2px solid var(--navy);padding:4px 9px;margin:3px;color:#14256f;font-family:'Jua',sans-serif;box-shadow:2px 2px #3153a3}
-.dialog{border:3px solid #fff4d8;box-shadow:4px 4px #172c77;background:#0c1022;color:#fff6dc;padding:9px 14px;margin:9px auto;max-width:1200px}
-.dialog-name{display:inline-block;border:2px solid #fff4d8;background:#20294e;color:#ffe67f;padding:3px 9px;font-family:'Jua',sans-serif}
-.day-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}.day-cell{text-align:center;border:2px solid #101c59;background:#f8edcc;padding:12px;color:#1b2b70;font:13px monospace}.day-cell b{display:block;font:bold 24px monospace;min-height:28px}.day-cell.ok b{color:#008c73}.day-cell.no b{color:#c53b64}
-.expanded{background:#f7edcf;color:#17275f;border:4px solid var(--navy);box-shadow:5px 5px #3153a3;padding:15px}
+.day-strip{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}.day-cell{text-align:center;border:2px solid #101c59;background:#f8edcc;padding:12px 4px;color:#1b2b70;font:13px monospace}.day-cell b{display:block;font:bold 24px monospace;min-height:28px}.day-cell.ok b{color:#008c73}.day-cell.no b{color:#c53b64}
 .stButton>button{border:2px solid #101c59!important;border-radius:3px!important;background:#ffe583!important;color:#101c59!important;font-family:'Jua',sans-serif!important;box-shadow:2px 2px #3153a3!important}
-div[data-testid="stMetric"]{background:#f7edcf;color:#17275f;border:2px solid #101c59;padding:7px}.result-box{text-align:center;background:#f7edcf;color:#17275f;border:5px solid #101c59;box-shadow:6px 6px #3153a3;padding:20px}footer{visibility:hidden}
-</style>""", unsafe_allow_html=True)
+.note-paper{max-width:850px;margin:20px auto;background:#f3e7c7;color:#29251d;padding:34px 42px;border:1px solid #c5b68f;box-shadow:0 12px 35px #0008;font-family:Georgia,'Noto Serif',serif;line-height:1.75}
+.note-paper h1{color:#34302a;text-align:center;border-bottom:1px solid #b7a982;padding-bottom:12px}.note-paper .formula{text-align:center;background:#e8ddbd;padding:12px;font-size:1.15rem;margin:18px 0}
+.file-panel{background:#f7edcf;color:#17275f;border:3px solid #101c59;padding:16px;margin:10px 0}
+</style>""",unsafe_allow_html=True)
 
 
 def init_state():
@@ -132,96 +131,114 @@ def calendar_html():
     return '<div class="day-strip">'+"".join(cells)+"</div>"
 
 
-def set_from_query():
-    opened=st.query_params.get("open")
+def route_from_query():
+    """Handle clicks on the scene hotspots and desktop folders."""
+    action=st.query_params.get("open")
     file_page=st.query_params.get("file")
-    if opened in {"pc","calendar","game"}:
-        st.session_state.screen=opened
-        if opened=="pc":
+    if st.query_params.get("start") == "1":
+        start_week()
+    elif action in {"pc","calendar","note","game"}:
+        st.session_state.screen=action
+        if action=="pc":
             st.session_state.pc_page="desktop"
-    if file_page in {"data","guide","model","train"}:
+    elif file_page in {"data","guide","model","train"}:
         st.session_state.screen="pc"
         st.session_state.pc_page=file_page
-    if opened or file_page:
+    if action or file_page or st.query_params.get("start"):
         st.query_params.clear()
 
 
-def render_start_art():
-    gif_fn=getattr(art,"start_scene_gif",None)
-    if callable(gif_fn):
-        encoded=base64.b64encode(gif_fn()).decode("ascii")
-        components.html(f'<img src="data:image/gif;base64,{encoded}" style="display:block;width:100%;height:auto" alt="중앙 하수구에서 흐르는 물">',height=390,scrolling=False)
-    else:
-        st.image(art.start_scene(),use_container_width=True)
+def image_bytes(which):
+    """Use supplied image files when present; otherwise keep the in-repo art fallback.
 
-
-def render_clickable_room():
-    image=art.room_scene(st.session_state.routes)
+    Put the two reference images at assets/start_scene.png and
+    assets/control_room.png to use those exact illustrations in the app.
+    """
+    path=ASSETS / ("start_scene.png" if which=="start" else "control_room.png")
+    if path.exists():
+        return path.read_bytes(), ImageRatio.read(path)
+    scene=art.start_scene() if which=="start" else art.room_scene(st.session_state.routes)
     buffer=BytesIO()
-    image.save(buffer,format="PNG")
-    encoded=base64.b64encode(buffer.getvalue()).decode("ascii")
-    components.html(f'''<div style="position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:5px">
-<img src="data:image/png;base64,{encoded}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill" alt="야간 관제실">
-<a href="?open=pc" target="_top" aria-label="책상 위 컴퓨터 열기" title="컴퓨터 열기" style="position:absolute;left:2%;top:38%;width:31%;height:49%;cursor:pointer"></a>
-<a href="?open=calendar" target="_top" aria-label="벽 달력 확대" title="달력 확대" style="position:absolute;left:84%;top:24%;width:14%;height:30%;cursor:pointer"></a>
-</div>''',height=640,scrolling=False)
+    scene.save(buffer,format="PNG")
+    return buffer.getvalue(), scene.width/scene.height
 
 
-def render_desktop():
-    # Plain Windows-style desktop: standard yellow folders, desktop labels and taskbar.
-    folders=[("점검 데이터","data"),("학습 안내","guide"),("AI 모델","model"),("오늘의 진단","train")]
-    folder_svg='''<svg viewBox="0 0 64 50" width="64" height="50" aria-hidden="true"><path d="M4 10a4 4 0 0 1 4-4h18l6 7h24a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#d99a18"/><path d="M4 17a4 4 0 0 1 4-4h48a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#f4c542"/><path d="M7 20h50v2H7z" fill="#ffdf72" opacity=".8"/></svg>'''
-    icons=[]
-    for label,page in folders:
-        icons.append(f'''<a class="win-icon" href="?file={page}" target="_top" aria-label="{label} 폴더 열기"><span class="win-folder">{folder_svg}</span><span class="win-label">{label}</span></a>''')
-    markup='''<div class="win-desktop">
-      <div class="win-icons">'''+"".join(icons)+'''</div>
-      <div class="win-taskbar"><div class="win-start" title="시작">⊞</div><div class="win-search"><span>⌕</span> 검색</div><div class="win-task-spacer"></div><div class="win-tray">◉　◖)))　▰　<small>오후 11:00<br>11/17</small></div></div>
-    </div>'''
+class ImageRatio:
+    @staticmethod
+    def read(path):
+        from PIL import Image
+        with Image.open(path) as image:
+            return image.width/image.height
+
+
+def render_start_screen():
+    gif_fn=getattr(art,"start_scene_gif",None)
+    if (ASSETS/"start_scene.png").exists():
+        data,ratio=image_bytes("start")
+        encoded=base64.b64encode(data).decode("ascii")
+        source=f"data:image/png;base64,{encoded}"
+    elif callable(gif_fn):
+        encoded=base64.b64encode(gif_fn()).decode("ascii")
+        source=f"data:image/gif;base64,{encoded}"
+        ratio=16/9
+    else:
+        data,ratio=image_bytes("start")
+        encoded=base64.b64encode(data).decode("ascii")
+        source=f"data:image/png;base64,{encoded}"
+    height=max(430,min(760,int(1320/ratio)))
+    components.html(f'''<div style="position:relative;width:100%;aspect-ratio:{ratio};overflow:hidden;background:#10182b">
+<img src="{source}" alt="하수구에서 물이 흐르는 장면" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:linear-gradient(transparent 25%,rgba(0,0,0,.2) 75%)">
+<div style="font-family:'Malgun Gothic',sans-serif;font-weight:800;font-size:clamp(34px,6vw,72px);letter-spacing:.04em;color:#fff4d6;text-shadow:0 3px 4px #071c28,2px 5px 0 #122b35;text-align:center">하수관 야간정비대</div>
+<a href="?start=1" target="_top" style="display:inline-block;text-decoration:none;padding:12px 44px;background:rgba(13,44,55,.86);border:2px solid #b9eee0;border-radius:4px;color:#f3fff7;font:700 20px 'Malgun Gothic',sans-serif;letter-spacing:.12em;box-shadow:0 3px 14px #06151d">START</a>
+</div></div>''',height=height,scrolling=False)
+
+
+def render_room():
+    data,ratio=image_bytes("room")
+    encoded=base64.b64encode(data).decode("ascii")
+    # Hotspots correspond to the PC, calendar, and middle desk in the supplied room reference.
+    # On the 640x360 fallback, these boxes are mapped to the matching drawn objects.
+    if (ASSETS/"control_room.png").exists():
+        pc=(3,39,26,27); calendar=(82,17,17,34); desk=(28,76,45,20)
+    else:
+        pc=(8,40,20,23); calendar=(85,25,12,25); desk=(2,60,32,28)
+    height=max(430,min(760,int(1320/ratio)))
+    components.html(f'''<div style="position:relative;width:100%;aspect-ratio:{ratio};overflow:hidden;background:#10182b">
+<img src="data:image/png;base64,{encoded}" alt="야간 하수관 관제실" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill">
+<a href="?open=pc" target="_top" title="컴퓨터 확대" aria-label="컴퓨터 확대" style="position:absolute;left:{pc[0]}%;top:{pc[1]}%;width:{pc[2]}%;height:{pc[3]}%;cursor:pointer"></a>
+<a href="?open=calendar" target="_top" title="달력 확대" aria-label="달력 확대" style="position:absolute;left:{calendar[0]}%;top:{calendar[1]}%;width:{calendar[2]}%;height:{calendar[3]}%;cursor:pointer"></a>
+<a href="?open=note" target="_top" title="경사하강법 쪽지 보기" aria-label="책상 위 쪽지 보기" style="position:absolute;left:{desk[0]}%;top:{desk[1]}%;width:{desk[2]}%;height:{desk[3]}%;cursor:pointer"></a>
+</div>''',height=height,scrolling=False)
+
+
+def render_pc_desktop():
+    folders=[("점검 데이터","data"),("경사하강법 안내","guide"),("AI 모델","model"),("오늘의 학습","train")]
+    folder_svg='''<svg viewBox="0 0 64 50" width="56" height="44" aria-hidden="true"><path d="M4 10a4 4 0 0 1 4-4h18l6 7h24a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#d99a18"/><path d="M4 17a4 4 0 0 1 4-4h48a4 4 0 0 1 4 4v25a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" fill="#f4c542"/><path d="M7 20h50v2H7z" fill="#ffdf72"/></svg>'''
+    icons="".join(f'''<a href="?file={page}" target="_top" style="width:86px;height:80px;display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:white;text-shadow:1px 1px 2px #17243b;font:12px 'Segoe UI',Arial,sans-serif">{folder_svg}<span>{label}</span></a>''' for label,page in folders)
+    markup=f'''<div style="height:420px;position:relative;overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;color:white;background:radial-gradient(ellipse at 68% 48%,#21a7d6 0%,#087bb8 20%,transparent 42%),radial-gradient(ellipse at 27% 82%,#1362a7 0%,#183b78 34%,transparent 58%),linear-gradient(135deg,#10264f,#087bb4 55%,#164e8c);border:1px solid #263c61">
+<div style="position:absolute;left:12px;top:12px;display:grid;grid-template-columns:repeat(2,90px);gap:5px">{icons}</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:43px;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(24,36,55,.84);border-top:1px solid #ffffff36"><b style="font-size:23px;color:#77c7ff">⊞</b><span style="width:210px;height:27px;border-radius:15px;background:#e2edf8;color:#354254;padding:5px 12px;font-size:12px">⌕　검색</span><span style="position:absolute;right:15px;font-size:11px">◖)))　▰　오후 11:00</span></div></div>'''
     components.html(markup,height=420,scrolling=False)
 
 
-def back_to_room():
-    st.markdown('<a href="?open=game" target="_top" style="display:inline-block;color:#d9defa;text-decoration:none;padding:4px 0">← 관제실</a>',unsafe_allow_html=True)
+def back_link(target="game"):
+    text="← 관제실" if target=="game" else "← 컴퓨터"
+    href="?open=game" if target=="game" else "?open=pc"
+    st.markdown(f'<a href="{href}" target="_top" style="display:inline-block;color:#d9defa;text-decoration:none;padding:5px 0">{text}</a>',unsafe_allow_html=True)
 
 
-init_state()
-set_from_query()
+def render_note():
+    st.markdown('''<div class="note-paper"><h1>경사하강법이란?</h1>
+<p>경사하강법은 모델의 예측이 정답에 가까워지도록 <b>오차가 줄어드는 방향으로 모델의 가중치를 조금씩 조정하는 방법</b>입니다.</p>
+<ol><li>현재 가중치로 관로 이상 확률을 예측합니다.</li><li>예측과 실제 점검 결과의 차이로 손실(Loss)을 계산합니다.</li><li>손실이 가장 빠르게 줄어드는 방향(기울기)을 구합니다.</li><li>학습률만큼 가중치를 이동하고 이 과정을 반복합니다.</li></ol>
+<div class="formula">새 가중치 = 기존 가중치 − 학습률 × 기울기</div>
+<p>이 게임에서는 수압·소음·침전물·부식 기록을 학습해 CCTV 네 관로 중 이상 위험이 가장 높은 곳을 찾습니다.</p></div>''',unsafe_allow_html=True)
 
-if st.session_state.screen=="start":
-    st.markdown('<div class="logo-mark">하수관 야간정비대</div>',unsafe_allow_html=True)
-    render_start_art()
-    _,center,_=st.columns([1,1.3,1])
-    with center:
-        if st.button("▶　　 START　　 ◀",use_container_width=True,key="start_game"):
-            st.session_state.cycle=1
-            start_week()
-            st.rerun()
 
-elif st.session_state.screen=="game":
-    st.markdown(f'<div class="hero"><span class="pill">근무 {st.session_state.cycle}회차</span><span class="pill">DAY {st.session_state.day} / 7</span><span class="pill">NIGHT {st.session_state.day} · 1 AM</span><h1>야간 하수관 관제실</h1></div>',unsafe_allow_html=True)
-    render_clickable_room()
-    st.caption("그림 속 책상 위 컴퓨터 또는 벽 달력을 눌러 열 수 있어요.")
-    st.markdown('<div class="dialog"><span class="dialog-name">야간 정비사</span><br>컴퓨터에서 점검 기록을 선택해 AI를 학습시키고, 오늘의 관로를 진단하세요.</div>',unsafe_allow_html=True)
-    if st.session_state.last_result:
-        result=st.session_state.last_result
-        if result["success"]:
-            st.success(f'AI가 CAM 0{result["chosen"]+1}의 이상을 찾았습니다.')
-        else:
-            st.error(f'AI는 CAM 0{result["chosen"]+1}을 골랐지만 실제 이상은 CAM 0{result["target"]+1}이었습니다.')
-        if st.session_state.day<7 and st.button("다음 날 근무 →",key=f"next_{st.session_state.day}"):
-            st.session_state.day+=1
-            st.session_state.routes,st.session_state.target=make_routes()
-            st.session_state.last_result=None
-            st.rerun()
-        st.caption(f'주간 성공 {st.session_state.wins}/7　·　Loss {st.session_state.loss:.3f}　·　Gradient {st.session_state.gradient:.3f}')
-
-elif st.session_state.screen=="pc":
-    back_to_room()
-    render_desktop()
-    page=st.session_state.pc_page
+def show_page_details(page):
     if page=="data":
-        st.markdown('<div class="expanded"><h2>점검 데이터</h2><p>정상·이상 점검 기록을 선택하세요.</p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="file-panel"><h2>점검 데이터</h2><p>정상·이상 점검 기록을 선택하세요.</p></div>',unsafe_allow_html=True)
         rows=st.session_state.examples
         options=[f'{row["id"]} · {"이상" if row["y"] else "정상"}' for row in rows]
         lookup={name:row["id"] for name,row in zip(options,rows)}
@@ -229,25 +246,25 @@ elif st.session_state.screen=="pc":
         ids={lookup[name] for name in selected}
         st.dataframe([{"파일":row["id"],"판정":"이상" if row["y"] else "정상",**{FEATURES[j]:round(row["x"][j],2) for j in range(4)},"포함":"✓" if row["id"] in ids else ""} for row in rows],use_container_width=True,hide_index=True,height=270)
     elif page=="guide":
-        st.markdown('<div class="expanded"><h2>학습 안내</h2><p>수압·소음·침전물·부식 기록으로 관로의 이상 확률을 예측합니다. 예측과 점검 라벨의 차이로 손실(Loss)을 계산하고 기울기(Gradient)를 따라 가중치를 갱신합니다.</p><p><code>새 가중치 = 기존 가중치 − 학습률 × 기울기</code></p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="file-panel"><h2>경사하강법 안내</h2><p>예측 오차를 줄이도록 가중치를 조금씩 조정하는 학습 방법입니다. 손실(Loss)의 기울기(Gradient)를 계산하고 학습률에 따라 가중치를 갱신합니다.</p><p><code>새 가중치 = 기존 가중치 − 학습률 × 기울기</code></p></div>',unsafe_allow_html=True)
     elif page=="model":
-        st.markdown('<div class="expanded"><h2>AI 모델</h2><p>현재 모델 파라미터</p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="file-panel"><h2>AI 모델</h2><p>현재 모델 파라미터</p></div>',unsafe_allow_html=True)
         cols=st.columns(4)
         for j in range(4):
             cols[j].metric(FEATURES[j],f'{st.session_state.weights[j]:+.3f}')
         st.metric("bias",f'{st.session_state.bias:+.3f}')
     elif page=="train":
-        st.markdown('<div class="expanded"><h2>오늘의 진단</h2><p>점검 기록으로 AI를 학습시킨 뒤 중앙 화면의 네 관로를 진단합니다.</p></div>',unsafe_allow_html=True)
+        st.markdown('<div class="file-panel"><h2>오늘의 진단</h2><p>점검 기록으로 AI를 학습시킨 뒤 CCTV의 네 관로를 판별합니다.</p></div>',unsafe_allow_html=True)
         rows=st.session_state.examples
         options=[f'{row["id"]} · {"이상" if row["y"] else "정상"}' for row in rows]
         lookup={name:row["id"] for name,row in zip(options,rows)}
         selected=st.multiselect("학습 데이터 파일",options,default=options,key=f"train_rows_{st.session_state.cycle}_{st.session_state.day}")
         ids={lookup[name] for name in selected}
         features=st.multiselect("사용 센서",FEATURES,default=FEATURES,key=f"features_{st.session_state.cycle}_{st.session_state.day}")
-        epochs=st.slider("경사하강법 반복 횟수",10,200,80,10,key=f"epochs_{st.session_state.cycle}_{st.session_state.day}")
+        epochs=st.slider("학습 반복 횟수",10,200,80,10,key=f"epochs_{st.session_state.cycle}_{st.session_state.day}")
         if st.session_state.last_result:
             st.info("오늘의 판정은 완료됐습니다. 다음 날 다시 학습할 수 있어요.")
-        elif st.button("학습 후 오늘 CCTV 진단",key=f"run_{st.session_state.day}",use_container_width=True):
+        elif st.button("학습 후 오늘 진단",key=f"run_{st.session_state.day}",use_container_width=True):
             ok,message=train(ids,features,epochs)
             if ok:
                 st.session_state.screen="summary" if st.session_state.day==7 else "game"
@@ -257,11 +274,43 @@ elif st.session_state.screen=="pc":
         if st.session_state.loss is not None:
             st.metric("Loss · BCE",f'{st.session_state.loss:.4f}')
 
+
+init_state()
+route_from_query()
+
+if st.session_state.screen=="start":
+    render_start_screen()
+
+elif st.session_state.screen=="game":
+    st.markdown(f'<div class="hero"><span>근무 {st.session_state.cycle}회차　·　DAY {st.session_state.day}/7</span></div>',unsafe_allow_html=True)
+    render_room()
+    if st.session_state.last_result:
+        result=st.session_state.last_result
+        if result["success"]:
+            st.success(f'AI가 CAM 0{result["chosen"]+1}의 이상을 찾았습니다.')
+        else:
+            st.error(f'AI는 CAM 0{result["chosen"]+1}을 골랐지만 실제 이상은 CAM 0{result["target"]+1}이었습니다.')
+        if st.session_state.day<7 and st.button("다음 날 →",key=f"next_{st.session_state.day}"):
+            st.session_state.day+=1
+            st.session_state.routes,st.session_state.target=make_routes()
+            st.session_state.last_result=None
+            st.rerun()
+        st.caption(f'주간 성공 {st.session_state.wins}/7　·　Loss {st.session_state.loss:.3f}　·　Gradient {st.session_state.gradient:.3f}')
+
+elif st.session_state.screen=="pc":
+    back_link()
+    render_pc_desktop()
+    show_page_details(st.session_state.pc_page)
+
 elif st.session_state.screen=="calendar":
-    back_to_room()
-    st.markdown(f'<div class="hero"><span class="pill">WEEK {st.session_state.cycle}</span><h1>달력</h1></div>',unsafe_allow_html=True)
-    st.markdown('<div class="expanded">'+calendar_html()+'</div>',unsafe_allow_html=True)
-    st.caption("하루의 AI 진단을 마치면 성공은 O, 실패는 X로 기록됩니다.")
+    back_link()
+    st.markdown(f'<div class="hero">WEEK {st.session_state.cycle}　·　달력</div>',unsafe_allow_html=True)
+    st.markdown(calendar_html(),unsafe_allow_html=True)
+    st.caption("AI 진단 성공은 O, 실패는 X로 기록됩니다.")
+
+elif st.session_state.screen=="note":
+    back_link()
+    render_note()
 
 elif st.session_state.screen=="summary":
     wins=st.session_state.wins
@@ -279,14 +328,3 @@ elif st.session_state.screen=="summary":
         else:
             st.session_state.screen="start"
         st.rerun()
-
-# Windows desktop styling is kept separate so the Streamlit app chrome remains usable.
-components.html("""<style></style>""",height=0)
-st.markdown("""<style>
-.win-desktop{position:relative;height:400px;overflow:hidden;color:#fff;font-family:'Segoe UI',Arial,sans-serif;background:radial-gradient(ellipse at 68% 48%,#21a7d6 0%,#087bb8 20%,transparent 42%),radial-gradient(ellipse at 27% 82%,#1362a7 0%,#183b78 34%,transparent 58%),linear-gradient(135deg,#10264f,#087bb4 55%,#164e8c);border:1px solid #263c61;box-shadow:0 12px 30px rgba(0,0,0,.35)}
-.win-icons{position:absolute;inset:12px auto 46px 10px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(4,82px);gap:3px 12px;align-content:start}
-.win-icon{width:88px;height:78px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:3px 2px;color:#fff!important;text-decoration:none!important;text-align:center;border:1px solid transparent;text-shadow:1px 1px 2px #17243b;font:12px 'Segoe UI',Arial,sans-serif}
-.win-icon:hover{background:rgba(160,205,245,.22);border-color:rgba(220,238,255,.55)}.win-folder{height:51px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}.win-folder svg{width:48px;height:38px}.win-label{line-height:16px;max-width:84px;overflow-wrap:anywhere}
-.win-taskbar{position:absolute;left:0;right:0;bottom:0;height:43px;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(24,36,55,.82);backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.17)}
-.win-start{font-size:23px;color:#77c7ff;padding:0 9px}.win-search{height:27px;width:210px;border-radius:15px;background:rgba(226,237,248,.92);color:#354254;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:12px}.win-search span{font-size:18px}.win-task-spacer{width:30px}.win-tray{position:absolute;right:15px;display:flex;align-items:center;gap:8px;font-size:12px;color:#fff}.win-tray small{text-align:right;font-size:10px;line-height:13px}
-</style>""",unsafe_allow_html=True)
