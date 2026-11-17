@@ -1,6 +1,6 @@
 # 하수관 야간정비대
 
-작은 픽셀 격자로 직접 그린 하수관 마을과 야간 관제실을 배경으로, 경사하강법을 체험하는 Streamlit 게임입니다.
+Streamlit으로 만든 하수관 유지보수 AI 체험 게임입니다. 배경 장면은 320×180 저해상도 픽셀 캔버스로 직접 그려 확대해도 각진 도트 느낌을 유지합니다.
 
 ## 실행
 
@@ -9,15 +9,14 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Streamlit Community Cloud에서는 저장소 `hrj013/mathtest`, 브랜치 `main`, 메인 파일 `app.py`를 지정해 배포합니다.
+Streamlit Community Cloud 설정: 저장소 `hrj013/mathtest`, 브랜치 `main`, 메인 파일 `app.py`.
 
-## 게임 흐름
+## 화면 구성
 
-- 시작 화면: 정면에서 본 둥근 하수관 입구에서 물이 마을 수로로 흘러나옵니다.
-- 관제실: 좌우 벽에 달력이 붙어 있고, 가운데 벽에는 하나의 큰 2×2 CCTV 스크린이 있습니다. 책상 위에는 업무용 PC가 놓여 있습니다.
-- PC 화면에서 데이터·센서 특징을 선택하고 경사하강법 반복 횟수를 정해 AI를 학습시킵니다. 학습 결과로 오늘 CCTV 진단 성공/실패가 결정됩니다.
-- PC 바탕화면의 `경사하강법.txt`와 `AI 모델.bin` 파일에서 학습 설명과 모델 가중치를 확인합니다.
-- 달력은 확대 화면에서 7일의 성공(O)/실패(X)을 보여줍니다.
-- 7일 결산: 5회 이상 성공은 승진, 3~4회는 다음 주 계속 근무, 3회 미만은 해고 결말입니다.
+- 시작: 둥근 하수관 입구 정면에서 수로로 물이 흘러나오는 장면, 큰 로고와 시작 버튼.
+- 관제실: 원근감 있는 사무실. 가운데 벽의 대형 단일 스크린 안에 CCTV 4개가 2×2로 표시됩니다. 책상 위 PC는 왼쪽, 벽 달력은 오른쪽에 놓입니다.
+- PC 확대: 바탕화면의 데이터, 경사하강법 설명, AI 모델, 오늘의 학습 파일을 엽니다. 학습 데이터/센서/epochs 선택 후 학습시켜 AI가 오늘의 CCTV 이상 관로를 예측합니다.
+- 달력 확대: 7일간 성공(O) / 실패(X) 기록을 봅니다.
+- 결산: 5회 이상 승진, 3~4회 다음 주 계속 근무, 3회 미만 퇴사 결말.
 
-`pixel_art.py`는 8px 타일 그리드 기반의 장면 도면을 담습니다. 벡터 곡선 대신 제한된 색상의 직각 픽셀 타일을 사용해 도트풍을 유지합니다.
+`pixel_art.py` contains the low-resolution scenes; the office is composed as one coherent perspective room with a large central monitor, left desk PC, and right wall calendar.

@@ -1,86 +1,97 @@
-"""Grid-based pixel scenes for the Drain Town game.
+"""Fine-grid pixel art for Drain Town (drawn on a 320x180 pixel canvas)."""
 
-All coordinates are integer tiles enlarged with nearest-neighbour rendering,
-so scene edges stay deliberately chunky instead of looking like smooth shapes.
-"""
-
-S = 8
+W, H = 320, 180
 
 
-def rect(x, y, w, h, color):
-    return f'<rect x="{x*S}" y="{y*S}" width="{w*S}" height="{h*S}" fill="{color}"/>'
+def box(x, y, w, h, color):
+    return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{color}"/>'
 
 
 def start_scene():
-    out = ['<svg viewBox="0 0 960 400" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated;shape-rendering:crispEdges">']
-    out.append(rect(0,0,120,50,'#3f72be'))
-    out.append(rect(0,0,120,17,'#5794d2'))
-    # Waterway wall and distant pixel plants
-    out.append(rect(0,16,120,7,'#263f86'))
-    for x in range(0,120,8): out.append(rect(x,16,1,7,'#19336f'))
-    for x,y,c in [(4,9,'#35c7c1'),(14,12,'#ef75ae'),(46,8,'#51d4bd'),(57,12,'#ec77a8'),(91,9,'#46c7c3'),(106,12,'#f082b1')]:
-        out.extend([rect(x,y,3,1,c),rect(x+1,y-1,2,1,c),rect(x+1,y+1,1,2,'#754683')])
-    # Riverbed / town path
-    out.extend([rect(0,23,120,27,'#344e9b'),rect(0,24,120,1,'#d7e1ef'),rect(0,42,120,1,'#d7e1ef')])
-    for x in range(0,120,12): out.append(rect(x,31,5,1,'#536fb0'))
-    # Front-facing circular sewer opening with stacked pixel rings
-    cx,cy=27,23
-    for radius,color in [(14,'#101d59'),(12,'#dfcf9a'),(10,'#60758d'),(8,'#143b70')]:
-        for yy in range(cy-radius,cy+radius+1):
-            for xx in range(cx-radius,cx+radius+1):
-                if max(abs(xx-cx),abs(yy-cy))==radius: out.append(rect(xx,yy,1,1,color))
-    out.extend([rect(cx-6,cy-1,12,3,'#39c5df'),rect(cx-5,cy-2,10,1,'#b3f4e9'),rect(cx-5,cy+2,10,2,'#28b4d7')])
-    for y,x,w,c in [(27,22,10,'#26abd0'),(30,20,14,'#49ccdc'),(33,17,20,'#8de6df'),(35,12,30,'#c6f0dc')]: out.append(rect(x,y,w,1,c))
-    # Pixel ripples / foam
-    for x,y,c in [(5,36,'#f5dd78'),(9,38,'#a2f0e2'),(39,37,'#ee79ad'),(47,35,'#a1f2e3'),(53,39,'#f0d45e')]: out.append(rect(x,y,2,1,c))
-    out.append('</svg>')
-    return ''.join(out)
+    """Front view of the round outfall mouth with water spilling into the river."""
+    s = ['<svg viewBox="0 0 320 180" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated;shape-rendering:crispEdges">']
+    s += [box(0,0,320,76,'#4e83ca'), box(0,0,320,54,'#77a8dc'), box(0,54,320,25,'#253f87')]
+    # distant masonry / river-town tiles
+    for x in range(0,320,20):
+        s += [box(x,55,2,22,'#1b3478'), box(x+8,61,6,2,'#9cb9de')]
+    # clustered pixel vegetation and coral
+    for x,y,c in [(14,34,'#39c9c4'),(39,44,'#ec77ad'),(85,30,'#51d4bd'),(122,46,'#f17cab'),(237,35,'#40c8c0'),(286,45,'#f185b4')]:
+        s += [box(x,y,10,5,c),box(x+3,y-4,6,4,c),box(x+4,y+5,3,7,'#713e83'),box(x-3,y+3,4,4,c)]
+    s += [box(0,79,320,101,'#354e9a'),box(0,84,320,3,'#d7e2f1'),box(0,155,320,4,'#e1e6f4')]
+    for x in range(0,320,32): s.append(box(x,119,15,2,'#516eae'))
+    # round pipe opening, built from nested pixel blocks and rings (not a side-on tube)
+    cx,cy=84,87
+    rings=[(42,'#101d59'),(37,'#e7d59b'),(32,'#687d95'),(27,'#213e75'),(21,'#12335f')]
+    for r,col in rings:
+        for yy in range(cy-r,cy+r+1):
+            for xx in range(cx-r,cx+r+1):
+                if max(abs(xx-cx),abs(yy-cy))==r: s.append(box(xx,yy,1,1,col))
+    # intrados shine and water flowing out through the round mouth
+    s += [box(62,76,44,3,'#94aac0'),box(57,80,3,22,'#7f92a4'),box(108,80,3,22,'#7f92a4')]
+    s += [box(61,88,46,12,'#35c7df'),box(66,84,36,4,'#a5f2e7'),box(65,100,38,5,'#24b1d5')]
+    for y,x,w,c in [(106,69,30,'#27add2'),(112,60,48,'#45c7dc'),(119,52,64,'#8de7df'),(127,40,88,'#c7f1dc'),(135,30,108,'#6bd9dc'),(145,18,132,'#b1efe1')]: s.append(box(x,y,w,4,c))
+    for x,y,c in [(9,131,'#f5db72'),(19,140,'#a2f1e4'),(154,132,'#f07baa'),(175,144,'#9beee0'),(200,125,'#ef7aaa'),(261,139,'#f0d668')]: s.append(box(x,y,5,2,c))
+    # bold frame rails, bolts, and labels
+    s += [box(39,42,4,72,'#101d59'),box(125,42,4,72,'#101d59'),box(43,43,3,69,'#e8d69c'),box(122,43,3,69,'#e8d69c')]
+    s += [box(0,78,320,2,'#162a6a'),box(0,157,320,2,'#d9e3f2')]
+    s.append('<text x="169" y="29" font-family="monospace" font-size="10" fill="#fff1c2">DRAIN TOWN WATERWAY</text>')
+    s.append('</svg>')
+    return ''.join(s)
 
 
-def _calendar(x, y, title='WEEK'):
-    parts=[rect(x,y,11,14,'#101c59'),rect(x+1,y+1,9,12,'#f5e8bd'),rect(x+1,y+1,9,3,'#e979a8'),rect(x+3,y,1,2,'#101c59'),rect(x+8,y,1,2,'#101c59')]
-    for yy in (5,8,11):
-        for xx in (x+2,x+5,x+8): parts.append(rect(xx,yy,2,1,'#3459a3'))
-    parts.extend([rect(x+5,y+10,1,2,'#18a77e'),rect(x+5,y+11,2,1,'#18a77e')])
-    return ''.join(parts)
+def calendar_wall(x, y):
+    s=[box(x,y,27,37,'#101c59'),box(x+2,y+2,23,33,'#f4e7bf'),box(x+2,y+2,23,8,'#e879a8')]
+    s += [box(x+7,y-2,3,7,'#101c59'),box(x+19,y-2,3,7,'#101c59')]
+    for yy in (13,20,27):
+        for xx in (x+5,x+12,x+19): s.append(box(xx,yy,4,3,'#3559a3'))
+    s += [box(x+12,y+27,2,5,'#049577'),box(x+12,y+30,6,2,'#049577')]
+    return ''.join(s)
 
 
 def room_scene(routes):
-    """Perspective office with side-wall calendars, one 2x2 wall monitor, desk PC."""
-    out=['<svg viewBox="0 0 1200 680" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated;shape-rendering:crispEdges">']
-    # Room shell: ceiling, back wall, side walls, and parquet floor in chunky pixel perspective.
-    out += [rect(0,0,120,85,'#d1d1d0'),'<path d="M0 0H120L103 10H17Z" fill="#bdbfbe"/>', '<path d="M0 0L17 10V47L0 62Z" fill="#e4e4e1"/>','<path d="M120 0L103 10V47L120 62Z" fill="#b9babd"/>',rect(17,10,86,37,'#efefeb')]
-    out.append(rect(0,47,120,38,'#765646'))
-    # floorboards with perspective lines, narrow planks and alternating wood pixels
-    out.append('<path d="M0 47H120L120 85H0Z" fill="#80604d"/>')
-    for x in range(0,121,4): out.append(f'<path d="M60 47L{x} 85" stroke="#a77b5d" stroke-width="2"/>')
-    for y in (51,56,62,69,77,84): out.append(f'<path d="M{max(0,60-(y-47)*1.6):.0f} {y}H{min(120,60+(y-47)*1.6):.0f}" stroke="#4a3c48" stroke-width="1"/>')
-    for x,y in [(8,57),(22,67),(40,53),(78,59),(101,71),(57,78),(90,53),(31,77)]: out.append(rect(x,y,2,1,'#b18461'))
-    # Back wall dado rail, baseboards and checker-like trim
-    out += [rect(17,45,86,2,'#8b7899'),rect(17,47,86,1,'#31458d'),rect(0,61,120,2,'#293f89')]
-    # The single giant central CCTV screen, with four feeds inside one bezel.
-    out += [rect(38,15,44,28,'#101c59'),rect(40,17,40,24,'#172a70'),rect(41,18,38,22,'#20264f')]
-    # Pixel screen frames and divider
-    out += [rect(41,18,38,1,'#d6d7dc'),rect(41,39,38,1,'#d6d7dc'),rect(41,18,1,22,'#d6d7dc'),rect(78,18,1,22,'#d6d7dc'),rect(59,18,1,22,'#a8b8d2'),rect(41,29,38,1,'#a8b8d2')]
-    # CCTV wells, pixel rings and sensor patterns per quadrant.
+    """Perspective room: central cinema-size 2x2 screen, left desk PC, right wall calendar."""
+    s=['<svg viewBox="0 0 320 190" width="100%" xmlns="http://www.w3.org/2000/svg" style="display:block;image-rendering:pixelated;shape-rendering:crispEdges">']
+    # Ceiling and room perspective based on the supplied empty-room reference.
+    s += [box(0,0,320,190,'#735d8b'),'<path d="M0 0H320L287 27H33Z" fill="#c7c7c5"/>','<path d="M0 0L33 27V111L0 145Z" fill="#e2e2df"/>','<path d="M320 0L287 27V111L320 145Z" fill="#b9b9bd"/>',box(33,27,254,84,'#eeefeb')]
+    # wall details: blue outlines, trim, tile seams
+    s += [box(33,27,254,2,'#f9f8f2'),box(33,109,254,3,'#977c9e'),box(0,143,320,4,'#172d76')]
+    for x in range(38,287,22): s.append(box(x,32,1,72,'#e4e4df'))
+    # wooden pixel floor in perspective with tight plank grain
+    s += [box(0,147,320,43,'#795844'),'<path d="M0 147H320L320 190H0Z" fill="#80604a"/>']
+    for x in range(0,321,12): s.append(f'<path d="M160 147L{x} 190" stroke="#a77c5b" stroke-width="2"/>')
+    for y in (153,160,169,179,188):
+        left=max(0,int(160-(y-147)*3.7)); right=min(320,int(160+(y-147)*3.7))
+        s.append(f'<path d="M{left} {y}H{right}" stroke="#4e3b45" stroke-width="1"/>')
+    for x,y in [(15,166),(44,179),(78,157),(251,166),(287,182),(190,173),(116,184),(225,155),(62,169),(268,157)]: s.append(box(x,y,4,1,'#b58a64'))
+    # Central cinema-like giant wall display, one broad display divided into four feeds.
+    s += [box(79,35,162,79,'#101c59'),box(82,38,156,73,'#16245e'),box(85,41,150,67,'#090f26'),box(87,43,146,3,'#aebbd2'),box(87,103,146,3,'#aebbd2'),box(87,43,3,63,'#aebbd2'),box(230,43,3,63,'#aebbd2'),box(159,43,2,63,'#9fb5cf'),box(87,73,146,2,'#9fb5cf')]
+    # Detailed CCTV pictures, 2 columns x 2 rows, each 70x28 pixels.
     for i,route in enumerate(routes):
-        bx=42+(i%2)*19; by=19+(i//2)*11
-        out.extend([rect(bx,by,17,9,'#386da5'),rect(bx+1,by+1,15,7,'#7597b5'),rect(bx+3,by+2,11,5,'#182f60'),rect(bx+4,by+5,9,max(1,int(route[0]*2)),'#36c5dc')])
-        for j in range(int(route[2]*4)): out.append(rect(bx+4+j*2,by+6,1,1,'#ef78a9'))
-        for j in range(int(route[3]*3)): out.append(rect(bx+2+j*3,by+2,1,1,'#e0788c'))
-        out.append(f'<text x="{bx*S+5}" y="{by*S+10}" font-family="monospace" font-size="7" fill="#fff0c8">{i+1}</text>')
-    # Two calendars are actually attached to opposite side walls.
-    out += [_calendar(7,28),_calendar(102,28)]
-    out += [rect(5,25,15,1,'#243b80'),rect(100,25,15,1,'#243b80')]
-    # Wall notices / pixel fixtures
-    out += [rect(22,25,7,5,'#536ba4'),rect(23,26,5,3,'#f0dfab'),rect(91,25,6,5,'#536ba4'),rect(92,26,4,3,'#e978a8')]
-    # Office desk foreground, front edge, legs and surface.
-    out += ['<path d="M18 49H102L111 59H9Z" fill="#a36d4f"/>',rect(9,58,102,3,'#101c59'),rect(14,61,4,14,'#42364b'),rect(102,61,4,14,'#42364b'),rect(17,58,86,1,'#d39b69')]
-    for x in range(20,101,12): out.append(rect(x,51,7,1,'#c28a60'))
-    # Desktop CRT computer sitting on the desk, keyboard and mug.
-    out += [rect(51,39,19,12,'#101c59'),rect(53,40,15,8,'#347fbd'),rect(54,41,13,5,'#64d6d7'),rect(55,43,9,1,'#e6f4ce'),rect(58,51,5,2,'#17265d'),rect(53,53,15,2,'#101c59'),rect(43,55,18,1,'#e5e0d0'),rect(43,56,18,2,'#5168a2')]
-    out += [rect(81,50,5,6,'#101c59'),rect(82,51,3,4,'#e57ca8'),rect(86,51,2,1,'#f8eab0'),rect(32,52,5,4,'#e8e2d5'),rect(32,52,5,1,'#101c59')]
-    # Chair in front of desk, pixel silhouette
-    out += [rect(49,62,22,2,'#101c59'),rect(51,64,18,5,'#354f9c'),rect(55,69,10,2,'#101c59'),rect(59,71,3,5,'#101c59'),rect(53,76,15,2,'#101c59')]
-    out.append('</svg>')
-    return ''.join(out)
+        bx=90+(i%2)*71; by=47+(i//2)*29
+        s += [box(bx,by,67,24,'#467cae'),box(bx,by,67,3,'#35528e'),box(bx,by+21,67,3,'#35528e')]
+        # Sewage tunnel wall, pipe ring and interior channel
+        s += [box(bx+13,by+5,42,15,'#dcc99a'),box(bx+16,by+6,36,13,'#687992'),box(bx+20,by+8,28,10,'#17345f'),box(bx+21,by+13,26,5,'#2cb8d4')]
+        level=int(route[0]*4)
+        s.append(box(bx+22,by+17-level,24,level+1,'#47cde0'))
+        for j in range(int(route[2]*5)): s.append(box(bx+22+j*4,by+18,2,2,'#f2d164' if j%2 else '#ee78aa'))
+        for j in range(int(route[3]*4)): s.append(box(bx+14+j*5,by+6+(j%2),3,2,'#e87991'))
+        for j in range(int(route[1]*4)): s.append(box(bx+5+j*13,by+5+(j%3)*4,2,2,'#b8f1e7'))
+        s.append(f'<text x="{bx+3}" y="{by+9}" font-family="monospace" font-size="6" fill="#fff0c8">0{i+1}</text>')
+    # Left wall office desk with CRT PC physically sitting on the desktop.
+    s += [box(5,81,62,3,'#101c59'),box(8,84,56,4,'#a16d4b'),box(12,88,4,24,'#443849'),box(56,88,4,24,'#443849'),box(12,86,48,2,'#d19a68')]
+    # PC monitor, pixel screen glow, stand, base, keyboard and mouse
+    s += [box(23,61,30,22,'#101c59'),box(25,63,26,16,'#3b83b9'),box(27,65,22,12,'#5ed2d7'),box(29,67,14,2,'#d8f1ce'),box(29,71,17,2,'#f2d881'),box(34,83,8,3,'#18275f'),box(29,86,18,2,'#101c59'),box(18,86,19,2,'#e9dfc6'),box(18,88,19,2,'#3c5a9c'),box(42,86,4,3,'#101c59'),box(43,87,2,1,'#e9dfc6')]
+    # desk drawers and pixel handles
+    s += [box(14,92,18,12,'#925f49'),box(36,92,20,12,'#855744'),box(20,96,3,2,'#dfc27c'),box(43,96,3,2,'#dfc27c')]
+    # Right wall calendar visibly mounted on the wall
+    s.append(calendar_wall(278,65))
+    s += [box(274,59,35,2,'#172d76'),box(280,105,22,3,'#172d76')]
+    # lamp and small wall notice
+    s += [box(155,28,10,3,'#101c59'),box(158,31,4,5,'#f6df7c'),box(150,36,20,1,'#fff0b8'),box(69,47,7,10,'#314b91'),box(70,48,5,7,'#f3e5b6')]
+    # Foreground office chair centered in front of desk/screen.
+    s += [box(133,124,54,3,'#101c59'),box(138,116,44,10,'#253f86'),box(143,114,34,4,'#355aa3'),box(154,127,12,5,'#101c59'),box(158,132,5,13,'#101c59'),box(146,143,28,3,'#101c59'),box(139,145,5,2,'#101c59'),box(176,145,5,2,'#101c59')]
+    # PC/calandar labels in tiny signage (not explanatory UI)
+    s.append('<text x="25" y="60" font-family="monospace" font-size="5" fill="#fff1bd">WORK PC</text>')
+    s.append('<text x="279" y="61" font-family="monospace" font-size="5" fill="#fff1bd">WEEK</text>')
+    s.append('</svg>')
+    return ''.join(s)
