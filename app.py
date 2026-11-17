@@ -4,7 +4,21 @@ import random
 
 import streamlit as st
 import streamlit.components.v1 as components
-from pixel_art import room_scene, start_scene_gif
+
+# Import the module, not an individual symbol: this also tolerates a stale
+# cached pixel_art.py that predates start_scene_gif().
+try:
+    import pixel_art as art
+except ImportError as exc:
+    st.error(
+        "그림 모듈을 불러오지 못했습니다. requirements.txt에 Pillow가 있는지 "
+        "확인한 뒤 앱을 재배포해주세요. 상세 오류: " + str(exc)
+    )
+    st.stop()
+
+room_scene = art.room_scene
+start_scene = art.start_scene
+start_scene_gif = getattr(art, "start_scene_gif", None)
 
 st.set_page_config(
     page_title="하수관 야간정비대",
@@ -20,7 +34,7 @@ st.markdown(
     """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap');
-    :root { --navy:#101c59; --blue:#173b9b; --paper:#f5e8bd; }
+    :root { --navy:#101c59; --paper:#f5e8bd; }
     html, body, [class*="css"] { font-family:'Gowun Dodum',sans-serif; }
     .stApp { background:#15182e; color:#f5e8bd; }
     .block-container { max-width:1380px; padding-top:.35rem; padding-bottom:1.2rem; }
@@ -31,8 +45,6 @@ st.markdown(
       text-shadow:4px 4px #101c59; font-size:clamp(2.5rem,5vw,4.2rem); text-align:center; letter-spacing:.06em; margin:0 0 4px; }
     .pill { display:inline-block; background:#f7edcf; border:2px solid var(--navy); padding:4px 9px;
       margin:3px; color:#14256f; font-family:'Jua',sans-serif; box-shadow:2px 2px #3153a3; }
-    .panel { background:#f7edcf; color:#17275f; border:3px solid var(--navy); box-shadow:3px 3px #3153a3; padding:9px 12px; margin:5px 0; }
-    .panel h3 { margin:.1rem 0 .4rem; }
     .dialog { border:4px solid #fff4d8; outline:2px solid #101c59; box-shadow:5px 5px #172c77;
       background:#0c1022; color:#fff6dc; padding:9px 14px; margin:9px auto; max-width:1200px; }
     .dialog-name { display:inline-block; border:2px solid #fff4d8; background:#20294e; color:#ffe67f; padding:3px 9px; font-family:'Jua',sans-serif; }
@@ -40,10 +52,21 @@ st.markdown(
     .day-cell { text-align:center; border:2px solid #101c59; background:#f8edcc; padding:5px 1px; color:#1b2b70; font:10px monospace; }
     .day-cell b { display:block; font:bold 17px monospace; min-height:19px; }
     .day-cell.ok b { color:#008c73; } .day-cell.no b { color:#c53b64; }
-    .desktop { border:5px solid var(--navy); background:#183269; padding:14px; min-height:230px; box-shadow:6px 6px #101c59; }
-    .desktop-top { color:#fff4d8; font:12px monospace; padding:4px 7px 12px; }
-    .file-icon { text-align:center; border:2px solid #a9c5ff; background:#224eaa; color:#fff4d8; padding:12px 4px; min-height:85px; }
-    .file-icon b { display:block; font-size:2rem; }
+    .desktop-shell { background:linear-gradient(145deg,#fae8ff,#b69aff 42%,#734be0 85%,#f0a8fb);
+      border:5px solid #6f38d5; border-radius:20px; padding:12px; box-shadow:0 0 18px #cb78ff, inset 0 0 0 3px #f4c8ff; }
+    .desktop-screen { min-height:205px; padding:14px; border:3px solid #d5c6ff; border-radius:13px;
+      background:radial-gradient(ellipse at 50% 10%,#aeeaff,#668be4 48%,#5841b9 100%); }
+    .desktop-top { color:#fff7ff; font:12px monospace; padding:3px 5px 14px; text-shadow:1px 1px #54358e; }
+    .folder { text-align:center; min-height:118px; padding:10px 5px 7px; margin:3px 0;
+      background:linear-gradient(160deg,rgba(255,255,255,.46),rgba(215,195,255,.24));
+      border:1px solid rgba(255,255,255,.7); border-radius:12px; color:#fff; text-shadow:1px 1px #49368d;
+      box-shadow:0 4px 10px rgba(48,31,116,.22); }
+    .folder-icon { position:relative; margin:7px auto 10px; width:53px; height:37px; border-radius:7px 8px 8px 8px;
+      background:linear-gradient(145deg,#fff1a7,#ffadcf 52%,#c18aff); box-shadow:0 4px 0 #7444c4,0 0 13px rgba(255,255,255,.62); }
+    .folder-icon:before { content:''; position:absolute; left:3px; top:-8px; width:23px; height:11px;
+      border-radius:5px 5px 0 0; background:#ffe5a0; }
+    .folder-icon span { position:absolute; inset:5px 0 auto; font-size:22px; line-height:26px; }
+    .file-icon { text-align:center; color:#fff8ff; padding:0 3px; font-size:.78rem; min-height:23px; }
     .expanded { background:#f7edcf; color:#17275f; border:4px solid var(--navy); box-shadow:5px 5px #3153a3; padding:15px; }
     .stButton>button { border:3px solid #101c59!important; border-radius:0!important; background:#ffe583!important; color:#101c59!important;
       font-family:'Jua',sans-serif!important; font-size:1rem!important; box-shadow:3px 3px #3153a3!important; min-height:2.4rem; }
@@ -208,18 +231,51 @@ def navigation():
             go_home()
 
 
+def render_start_art():
+    if callable(start_scene_gif):
+        gif_data = base64.b64encode(start_scene_gif()).decode("ascii")
+        components.html(
+            f'''<div style="width:100%;line-height:0;border:5px solid #101c59;box-shadow:7px 7px #3153a3;overflow:hidden">
+            <img src="data:image/gif;base64,{gif_data}" style="display:block;width:100%;height:auto" alt="정중앙 하수구에서 물이 흐르는 장면"></div>''',
+            height=390,
+            scrolling=False,
+        )
+    else:
+        # Fallback for an older cached pixel_art.py without the GIF helper.
+        st.image(start_scene(), use_container_width=True)
+
+
+def render_desktop():
+    st.markdown(
+        '<div class="desktop-shell"><div class="desktop-screen">'
+        '<div class="desktop-top">DRAIN TOWN ✦ NIGHT OFFICE　 /　 MY FILES</div>',
+        unsafe_allow_html=True,
+    )
+    files = [
+        ("📊", "점검 데이터", "data"),
+        ("📘", "경사하강법 안내", "guide"),
+        ("💠", "AI 모델", "model"),
+        ("🧪", "오늘의 학습", "train"),
+    ]
+    cols = st.columns(4)
+    for col, (icon, label, page) in zip(cols, files):
+        with col:
+            st.markdown(
+                f'<div class="folder"><div class="folder-icon"><span>{icon}</span></div>'
+                f'<div class="file-icon">{label}</div></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("열기", key=f"file_{page}_{st.session_state.day}", use_container_width=True):
+                st.session_state.pc_page = page
+                st.rerun()
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+
 init_state()
 
 if st.session_state.screen == "start":
-    # Title sits directly above the centered animated sewer illustration.
     st.markdown('<div class="logo-mark">하수관 야간정비대</div>', unsafe_allow_html=True)
-    gif_data = base64.b64encode(start_scene_gif()).decode("ascii")
-    components.html(
-        f'''<div style="width:100%;line-height:0;border:5px solid #101c59;box-shadow:7px 7px #3153a3;overflow:hidden">
-        <img src="data:image/gif;base64,{gif_data}" style="display:block;width:100%;height:auto" alt="정중앙 하수구에서 물이 흐르는 장면"></div>''',
-        height=390,
-        scrolling=False,
-    )
+    render_start_art()
     _, center_col, _ = st.columns([1, 1.3, 1])
     with center_col:
         if st.button("▶　　 START　　 ◀", use_container_width=True, key="start_game"):
@@ -236,7 +292,6 @@ elif st.session_state.screen == "game":
         unsafe_allow_html=True,
     )
     st.image(room_scene(st.session_state.routes), use_container_width=True)
-
     left_col, center_col, right_col = st.columns([1.15, 3.8, 1.15], gap="small")
     with left_col:
         if st.button("▣ 책상 PC 열기", key="pc_open", use_container_width=True):
@@ -253,7 +308,6 @@ elif st.session_state.screen == "game":
         if st.button("▦ 오른쪽 벽 달력", key="calendar_open", use_container_width=True):
             st.session_state.screen = "calendar"
             st.rerun()
-
     st.markdown(
         '<div class="dialog"><span class="dialog-name">야간 정비사</span>'
         '<div>왼쪽 벽에 붙은 업무 책상 PC에서 데이터를 골라 AI를 학습시켜. 그 결과가 오늘 CCTV 진단을 결정해.</div></div>',
@@ -285,22 +339,14 @@ elif st.session_state.screen == "pc":
     navigation()
     st.markdown(
         f'<div class="hero"><span class="pill">PC DISPLAY · DAY {st.session_state.day}/7</span>'
-        '<h1>업무용 컴퓨터</h1></div>', unsafe_allow_html=True,
+        '<h1>업무용 컴퓨터</h1></div>',
+        unsafe_allow_html=True,
     )
-    st.markdown('<div class="desktop"><div class="desktop-top">DRAIN TOWN OFFICE OS　● ONLINE　/　 FILES</div>', unsafe_allow_html=True)
-    files = [("▦", "점검 데이터.csv", "data"), ("▤", "경사하강법.txt", "guide"), ("▣", "AI 모델.bin", "model"), ("▶", "오늘의 학습.exe", "train")]
-    file_cols = st.columns(4)
-    for col, (icon, label, page) in zip(file_cols, files):
-        with col:
-            st.markdown(f'<div class="file-icon"><b>{icon}</b>{label}</div>', unsafe_allow_html=True)
-            if st.button("파일 열기", key=f"file_{page}_{st.session_state.day}", use_container_width=True):
-                st.session_state.pc_page = page
-                st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-
+    render_desktop()
     page = st.session_state.pc_page
+
     if page == "data":
-        st.markdown('<div class="expanded"><h2>점검 데이터.csv</h2><p>정상·이상 기록을 선택하고 센서 특징을 살펴보세요.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="expanded"><h2>점검 데이터</h2><p>정상·이상 기록을 선택하고 센서 특징을 확인하세요.</p></div>', unsafe_allow_html=True)
         rows = st.session_state.examples
         options = [f'{r["id"]} · {"이상" if r["y"] else "정상"}' for r in rows]
         lookup = {label: row["id"] for label, row in zip(options, rows)}
@@ -308,9 +354,9 @@ elif st.session_state.screen == "pc":
         ids = {lookup[label] for label in selected}
         st.dataframe([{"파일":r["id"],"판정":"이상" if r["y"] else "정상",**{FEATURES[i]:round(r["x"][i],2) for i in range(4)},"포함":"✓" if r["id"] in ids else ""} for r in rows], use_container_width=True, hide_index=True, height=270)
     elif page == "guide":
-        st.markdown('<div class="expanded"><h2>경사하강법.txt</h2><p>모델은 수압·소음·침전물·부식 기록으로 관로의 이상 확률을 예측합니다. 예측과 점검 라벨의 차이로 손실(Loss)을 계산하고 기울기(Gradient)를 따라 가중치를 조금씩 갱신합니다.</p><p><code>새 가중치 = 기존 가중치 − 학습률 × 기울기</code></p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="expanded"><h2>경사하강법 안내</h2><p>모델은 수압·소음·침전물·부식 기록으로 관로의 이상 확률을 예측합니다. 예측과 점검 라벨의 차이로 손실(Loss)을 계산하고 기울기(Gradient)를 따라 가중치를 갱신합니다.</p><p><code>새 가중치 = 기존 가중치 − 학습률 × 기울기</code></p></div>', unsafe_allow_html=True)
     elif page == "model":
-        st.markdown('<div class="expanded"><h2>AI 모델.bin</h2><p>현재 모델 파라미터</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="expanded"><h2>AI 모델</h2><p>현재 모델 파라미터</p></div>', unsafe_allow_html=True)
         cols = st.columns(4)
         for i in range(4):
             cols[i].metric(FEATURES[i], f'{st.session_state.weights[i]:+.3f}')
@@ -318,7 +364,7 @@ elif st.session_state.screen == "pc":
         if st.session_state.loss is not None:
             st.metric("최근 Loss", f'{st.session_state.loss:.4f}')
     elif page == "train":
-        st.markdown('<div class="expanded"><h2>오늘의 학습.exe</h2><p>선택한 점검 기록으로 AI를 학습한 뒤 중앙 대형 스크린의 네 관로를 판별합니다.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="expanded"><h2>오늘의 학습</h2><p>선택한 점검 기록으로 AI를 학습한 뒤 중앙 대형 스크린의 네 관로를 판별합니다.</p></div>', unsafe_allow_html=True)
         rows = st.session_state.examples
         options = [f'{r["id"]} · {"이상" if r["y"] else "정상"}' for r in rows]
         lookup = {label: row["id"] for label, row in zip(options, rows)}
